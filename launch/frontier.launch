@@ -1,0 +1,90 @@
+<launch>
+    <arg name="mav_name" default="firefly"/>
+    <arg name="frame_id" default="odom" />
+    <arg name="verbose" default="false"/>
+    <arg name="voxel_size" default="0.10" />
+    <arg name="voxels_per_side" default="16" />
+    <arg name="robot_radius" default="0.6" />
+    <arg name="clear_radius" default="1.0" />
+
+    <!-- <arg name="bag_file" default="$(find scoutair_planner)/bag/layer_2024-06-12-02-50-12.bag"/> -->
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find scoutair_planner)/config/planner.rviz" output="screen"/>
+
+    <!-- Play the rosbag file -->
+    <!-- <node name="rosbag_play" pkg="rosbag" type="play" args="$(arg bag_file)" output="screen"/> -->
+
+
+    <group ns="$(arg mav_name)">
+        <node name="scoutair_planner" pkg="scoutair_planner" type="frontier_map_node" output="screen">
+            <remap from="odometry" to="ground_truth/odometry" />
+            <remap from="scoutair_planner/esdf_map_in" to="esdf_map" />
+            <remap from="scoutair_planner/tsdf_map_in" to="tsdf_map" />
+            <remap from="scoutair_planner/block_indices_updater/esdf_map_in" to="esdf_map" />
+
+            <!-- ESDF Server -->
+            <param name="tsdf_voxel_size" value="$(arg voxel_size)" />
+            <param name="tsdf_voxels_per_side" value="$(arg voxels_per_side)" />
+            <param name="esdf_max_distance_m" value="2.0" />
+            <param name="update_mesh_every_n_sec" value="0.0" />
+            <param name="traversability_radius" value="$(arg robot_radius)" />
+            <param name="publish_traversable" value="true" />
+            <param name="slice_level" value="1.0" />
+            <param name="publish_slices" value="true" />
+
+            <!-- Voxblox Map -->
+            <param name="Voxblox_Map/voxel_size" value="$(arg voxel_size)" />
+            <param name="Voxblox_Map/voxels_per_side" value="$(arg voxels_per_side)" />
+            <param name="Voxblox_Map/esdf_max_distance_m" value="2.0" />
+            <param name="Voxblox_Map/min_candidate_clearance" value="0.2" type="double"/>
+            <param name="Voxblox_Map/occupancy_distance_voxelsize_factor" value="0.5" type="double"/>;
+
+            <param name="local_frame_id" value="$(arg frame_id)" />
+            <param name="world_frame" value="$(arg frame_id)" />
+            <param name="replan_dt" value="0.25" />
+            <param name="command_publishing_dt" value="0.25" />
+            <param name="replan_lookahead_sec" value="1.0" />
+            <param name="mpc_prediction_horizon" value="300" />
+
+            <param name="robot_radius" value="$(arg robot_radius)" />
+            <param name="planning_horizon_m" value="20.0" />
+            <param name="autostart" value="true" />
+            <param name="verbose" value="true" />
+            <param name="v_max" value="2.0" />
+            <param name="a_max" value="2.0" />
+            <param name="avoid_collisions" value="true" />
+
+            <!-- Perception utils -->
+            <param name="perception_utils/top_angle" value="0.56125" type="double"/>;
+            <param name="perception_utils/left_angle" value="0.69222" type="double"/>;
+            <param name="perception_utils/right_angle" value="0.68901" type="double"/>;
+            <param name="perception_utils/max_dist" value="4.5" type="double"/>;
+            <param name="perception_utils/vis_dist" value="1.0" type="double"/>;
+
+            
+            <param name="FrontierMap/box_min_x" value="-10" />
+            <param name="FrontierMap/box_min_y" value="-15" />
+            <param name="FrontierMap/box_min_z" value="0" />
+            <param name="FrontierMap/box_max_x" value="10" />
+            <param name="FrontierMap/box_max_y" value="15" />
+            <param name="FrontierMap/box_max_z" value="1.5" />
+            <param name="frontier/cluster_min" value="80" type="int"/>
+            <param name="frontier/cluster_size_xy" value="0.8" type="double"/>
+            <!-- <param name="frontier/cluster_size_z" value="10.0" type="double"/> -->
+            <param name="frontier/min_candidate_dist" value="0.75" type="double"/>
+            
+            <param name="frontier/candidate_dphi" value="$(eval 15 * 3.1415926 / 180.0)" type="double"/>
+            <param name="frontier/candidate_diff" value="0.2"/>
+            <param name="frontier/candidate_min" value="0.8" type="double"/>
+            <param name="frontier/candidate_max" value="2.0" type="double"/>
+            <param name="frontier/down_sample" value="3" type="int"/>;
+            <param name="frontier/min_visib_num" value="10" type="int"/>;
+            <param name="frontier/min_view_finish_fraction" value="0.2" type="double"/>;
+            <param name="frontier/occupancy_distance_voxelsize_factor" value="0.5" type="double"/>;
+            
+
+            <!-- What to do in case of failure. -->
+            <param name="goal_selector_strategy" value="none" />
+    </node>
+    </group>
+</launch>

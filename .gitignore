@@ -1,0 +1,6 @@
+# Ignore the entire bag directory
+bag/
+
+# Ignore all .bag files
+*.bag
+

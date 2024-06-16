@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>scoutair_planner</name>
+  <version>0.0.0</version>
+  <description>The scoutair_planner package</description>
+  <maintainer email="xhhh@todo.todo">xhhh</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>catkin_simple</buildtool_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>voxblox_ros</build_depend>
+  <build_depend>pcl_ros</build_depend>
+  <build_depend>esdf_idx_updater</build_depend>
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+
+  </export>
+</package>
