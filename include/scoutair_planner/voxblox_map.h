@@ -50,6 +50,8 @@ public:
 
   voxblox::BlockIndex getBlockIndexFromGlobalVoxelIndex( const voxblox::GlobalIndex &global_voxel_idx );
 
+  std::shared_ptr<voxblox::Block<voxblox::EsdfVoxel>> getBlockPtrByIndex( const voxblox::BlockIndex &index );
+
 private:
   voxblox::Layer<voxblox::EsdfVoxel>* getESDFLayer() 
     { return esdf_server_->getEsdfMapPtr()->getEsdfLayerPtr(); }

@@ -1,100 +1,117 @@
-#include <active_perception/graph_node.h>
-#include <path_searching/astar2.h>
-#include <plan_env/sdf_map.h>
-#include <plan_env/raycast.h>
+#include <scoutair_planner/graph_node.h>
+
+// #include <path_searching/astar2.h>
 
 namespace scoutair_planner {
+
 // Static data
-double ViewNode::vm_;
-double ViewNode::am_;
-double ViewNode::yd_;
-double ViewNode::ydd_;
-double ViewNode::w_dir_;
-shared_ptr<Astar> ViewNode::astar_;
-shared_ptr<RayCaster> ViewNode::caster_;
-shared_ptr<SDFMap> ViewNode::map_;
+float ViewNode::vm_;
+float ViewNode::am_;
+float ViewNode::yd_;
+float ViewNode::ydd_;
+float ViewNode::w_dir_;
+std::shared_ptr<Astar> ViewNode::astar_;
+std::shared_ptr<RayCaster> ViewNode::caster_;
+std::shared_ptr<boost::dynamic_bitset<>> ViewNode::free_bit_;
+Box_boundaries ViewNode::boundaries_;
+
+using namespace std;
+using namespace Eigen;
 
 // Graph node for viewpoints planning
-ViewNode::ViewNode(const Vector3d& p, const double& y) {
-  pos_ = p;
-  yaw_ = y;
+ViewNode::ViewNode(const Eigen::Vector3f& pos, const float& yaw) 
+{
+  pos_ = pos;
+  yaw_ = yaw;
   parent_ = nullptr;
   vel_.setZero();  // vel is zero by default, should be set explicitly
 }
 
-double ViewNode::costTo(const ViewNode::Ptr& node) {
-  vector<Vector3d> path;
-  double c = ViewNode::computeCost(pos_, node->pos_, yaw_, node->yaw_, vel_, yaw_dot_, path);
-  // std::cout << "cost from " << id_ << " to " << node->id_ << " is: " << c << std::endl;
-  return c;
+
+float ViewNode::costTo( const ViewNode::Ptr& node ) 
+{
+  vector<Eigen::Vector3f> path;
+  float cost = ViewNode::computeCost(pos_, node->pos_, yaw_, node->yaw_, vel_, yaw_dot_, path);
+  return cost;
 }
 
-double ViewNode::searchPath(const Vector3d& p1, const Vector3d& p2, vector<Vector3d>& path) {
+
+void ViewNode::set( const std::shared_ptr<boost::dynamic_bitset<>>& freebit, const Box_boundaries &boundaries )
+{
+  free_bit_ = freebit;
+  boundaries_ = boundaries;
+}
+
+
+bool ViewNode::check( const Eigen::Vector3i &idx ) 
+{
+  int linear_index = (idx[0] - boundaries_.box_min_[0]) * boundaries_.map_voxel_num_(1) * boundaries_.map_voxel_num_(2) + 
+                      (idx[1] - boundaries_.box_min_[1]) * boundaries_.map_voxel_num_(2) + (idx[2] - boundaries_.box_min_[2]);
+  if( !free_bit_->test(linear_index) ) {
+    return false;
+  }
+  return true;
+}
+
+
+float ViewNode::searchPath(const Eigen::Vector3f& pos1, const Eigen::Vector3f& pos2, vector<Eigen::Vector3f>& path) 
+{
   // Try connect two points with straight line
   bool safe = true;
   Vector3i idx;
-  caster_->input(p1, p2);
+  if( caster_ == nullptr ) std::cout << "nullptr here in searchPath!" << std::endl;
+  caster_->input(pos1, pos2);
   while (caster_->nextId(idx)) {
-    if (map_->getInflateOccupancy(idx) == 1 || map_->getOccupancy(idx) == SDFMap::UNKNOWN ||
-        !map_->isInBox(idx)) {
+    if( !check(idx) ) {
       safe = false;
       break;
     }
   }
   if (safe) {
-    path = { p1, p2 };
-    return (p1 - p2).norm();
+    path = { pos1, pos2 };
+    return (pos1 - pos2).norm();
   }
+
   // Search a path using decreasing resolution
-  vector<double> res = { 0.4 };
+  vector<float> res = { 0.4 };
   for (int k = 0; k < res.size(); ++k) {
     astar_->reset();
     astar_->setResolution(res[k]);
-    if (astar_->search(p1, p2) == Astar::REACH_END) {
+    if (astar_->search(pos1, pos2) == Astar::REACH_END) {
       path = astar_->getPath();
       return astar_->pathLength(path);
     }
   }
+
   // Use Astar early termination cost as an estimate
-  path = { p1, p2 };
+  path = { pos1, pos2 };
   return 1000;
 }
 
-double ViewNode::computeCost(const Vector3d& p1, const Vector3d& p2, const double& y1, const double& y2,
-                             const Vector3d& v1, const double& yd1, vector<Vector3d>& path) {
+
+float ViewNode::computeCost( const Eigen::Vector3f& pos1, const Eigen::Vector3f& pos2, const float& yaw1, const float& yaw2,
+                             const Eigen::Vector3f& v1, const float& yd1, std::vector<Eigen::Vector3f>& path ) 
+{
   // Cost of position change
-  double pos_cost = ViewNode::searchPath(p1, p2, path) / vm_;
+  float pos_cost = ViewNode::searchPath(pos1, pos2, path) / vm_;
 
   // Consider velocity change
   if (v1.norm() > 1e-3) {
-    Vector3d dir = (p2 - p1).normalized();
-    Vector3d vdir = v1.normalized();
-    double diff = acos(vdir.dot(dir));
+    Eigen::Vector3f dir = (pos2 - pos1).normalized();
+    Eigen::Vector3f vdir = v1.normalized();
+    float diff = acos(vdir.dot(dir));
     pos_cost += w_dir_ * diff;
-    // double vc = v1.dot(dir);
+    // float vc = v1.dot(dir);
     // pos_cost += w_dir_ * pow(vm_ - fabs(vc), 2) / (2 * vm_ * am_);
     // if (vc < 0)
     //   pos_cost += w_dir_ * 2 * fabs(vc) / am_;
   }
 
   // Cost of yaw change
-  double diff = fabs(y2 - y1);
-  diff = min(diff, 2 * M_PI - diff);
-  double yaw_cost = diff / yd_;
+  float diff = fabs(yaw2 - yaw1);
+  diff = min(diff, static_cast<float>( 2 * M_PI - diff ));
+  float yaw_cost = diff / yd_;
   return max(pos_cost, yaw_cost);
 
-  // // Consider yaw rate change
-  // if (fabs(yd1) > 1e-3)
-  // {
-  //   double diff1 = y2 - y1;
-  //   while (diff1 < -M_PI)
-  //     diff1 += 2 * M_PI;
-  //   while (diff1 > M_PI)
-  //     diff1 -= 2 * M_PI;
-  //   double diff2 = diff1 > 0 ? diff1 - 2 * M_PI : 2 * M_PI + diff1;
-  // }
-  // else
-  // {
-  // }
 }
 }

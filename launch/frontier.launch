@@ -16,7 +16,7 @@
 
 
     <group ns="$(arg mav_name)">
-        <node name="scoutair_planner" pkg="scoutair_planner" type="frontier_map_node" output="screen">
+        <node name="scoutair_planner" pkg="scoutair_planner" type="exploration_manager_node" output="screen">
             <remap from="odometry" to="ground_truth/odometry" />
             <remap from="scoutair_planner/esdf_map_in" to="esdf_map" />
             <remap from="scoutair_planner/tsdf_map_in" to="tsdf_map" />
@@ -36,7 +36,7 @@
             <param name="Voxblox_Map/voxel_size" value="$(arg voxel_size)" />
             <param name="Voxblox_Map/voxels_per_side" value="$(arg voxels_per_side)" />
             <param name="Voxblox_Map/esdf_max_distance_m" value="2.0" />
-            <param name="Voxblox_Map/min_candidate_clearance" value="0.2" type="double"/>
+            <param name="Voxblox_Map/min_candidate_clearance" value="0.4" type="double"/>
             <param name="Voxblox_Map/occupancy_distance_voxelsize_factor" value="0.5" type="double"/>;
 
             <param name="local_frame_id" value="$(arg frame_id)" />
@@ -75,12 +75,18 @@
             
             <param name="frontier/candidate_dphi" value="$(eval 15 * 3.1415926 / 180.0)" type="double"/>
             <param name="frontier/candidate_diff" value="0.2"/>
-            <param name="frontier/candidate_min" value="0.8" type="double"/>
+            <param name="frontier/candidate_min" value="0.6" type="double"/>
             <param name="frontier/candidate_max" value="2.0" type="double"/>
             <param name="frontier/down_sample" value="3" type="int"/>;
-            <param name="frontier/min_visib_num" value="10" type="int"/>;
+            <param name="frontier/min_visib_num" value="7" type="int"/>;
             <param name="frontier/min_view_finish_fraction" value="0.2" type="double"/>;
             <param name="frontier/occupancy_distance_voxelsize_factor" value="0.5" type="double"/>;
+
+            <!-- A* -->
+            <param name="astar/lambda_heu" value="10000.0" type="double"/>
+            <param name="astar/resolution_astar" value="0.2" type="double"/>
+            <param name="astar/allocate_num" value="1000000" type="int"/>
+            <param name="astar/max_search_time" value="0.001" type="double"/>
             
 
             <!-- What to do in case of failure. -->

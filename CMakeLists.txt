@@ -10,16 +10,6 @@ find_package(Boost REQUIRED)
 
 catkin_simple(ALL_DEPS_REQUIRED)
 
-# find_package(catkin REQUIRED COMPONENTS
-#   geometry_msgs
-#   message_generation
-#   roscpp
-#   std_msgs
-#   tf
-#   visualization_msgs
-#   voxblox_ros
-# )
-
 include_directories(
   include
   ${Eigen_INCLUDE_DIRS}
@@ -30,19 +20,23 @@ include_directories(
 # LIBRARIES #
 #############
 cs_add_library(${PROJECT_NAME}
+  src/exploration_manager.cpp
   src/frontier_map.cpp
   src/perception_utils.cpp
   src/raycast.cpp
   src/voxblox_map.cpp
+  src/frontier_visulization.cpp
+  src/graph_node.cpp
+  src/astar2.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${OMPL_LIBRARIES} ${Boost_LIBRARIES})
 
 ############
 # BINARIES #
 ############
-cs_add_executable(frontier_map_node
-  src/frontier_map_node.cpp
+cs_add_executable(exploration_manager_node
+  src/exploration_manager_node.cpp
 )
-target_link_libraries(frontier_map_node ${PROJECT_NAME})
+target_link_libraries(exploration_manager_node ${PROJECT_NAME})
 
 

@@ -45,11 +45,9 @@ VoxbloxMap::VoxbloxMap( const ros::NodeHandle& nh, const ros::NodeHandle& nh_pri
   distance_thres_ = occupancy_distance_voxelsize_factor * voxel_size_ + 1e-6;
   vox_num_nearUnknown_ = floor( min_candidate_clearance / voxel_size_d_ );
 
-  map_origin_ = Vector3f( 0, 0, 0 );
-
-//   uccu_pub_ = nh_private_.advertise<visualization_msgs::Marker>("/planning_vis/kOccupied", 10000);
-//   free_pub_ = nh_private_.advertise<visualization_msgs::Marker>("/planning_vis/kFree", 10000);
-//   unkno_pub_ = nh_private_.advertise<visualization_msgs::Marker>("/planning_vis/kUnknown", 10000);
+  voxblox::GlobalIndex global_origin_index( 0, 0, 0 );
+  map_origin_ = voxblox::getCenterPointFromGridIndex( global_origin_index, voxel_size_ );
+  // map_origin_ = Vector3f( 0, 0, 0 );
 }
 
 
@@ -263,6 +261,13 @@ voxblox::BlockIndex VoxbloxMap::getBlockIndexFromGlobalVoxelIndex( const voxblox
 {
   return voxblox::getBlockIndexFromGlobalVoxelIndex( global_voxel_idx, voxels_per_side_inv_ );
 }
+
+
+std::shared_ptr<voxblox::Block<voxblox::EsdfVoxel>> VoxbloxMap::getBlockPtrByIndex( const voxblox::BlockIndex &index )
+{ 
+  return esdf_layer_->getBlockPtrByIndex(index);
+} 
+
 
 /// @brief 
 /// @param global_index 
