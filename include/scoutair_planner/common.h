@@ -4,6 +4,7 @@
 #include <vector>
 #include <Eigen/Eigen>
 #include <unordered_set>
+#include <string>
 #include <list>
 #include <functional>
 #include <voxblox/core/common.h>
@@ -71,6 +72,18 @@ struct Box_boundaries {
   Eigen::Vector3i block_min_i_, block_max_i_;
 
   Eigen::Vector3i map_voxel_num_;
+};
+
+
+struct ExplorationParam {
+  // params
+  bool refine_local_;
+  int refined_num_;
+  double refined_radius_;
+  int top_view_num_;
+  double max_decay_;
+  std::string tsp_dir_;  // resource dir of tsp solver
+  double relax_time_;
 };
 
 

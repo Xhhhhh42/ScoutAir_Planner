@@ -30,8 +30,10 @@ public:
 
   bool init();
 
+  void updateFrontierMap();
+
   // Search frontiers and group them into clusters
-  void searchFrontiers( voxblox::BlockIndexList &updated_blocks );
+  void searchFrontiers();
 
   void computeFrontiersToVisit();
 
@@ -160,6 +162,9 @@ private:
 
   // Visulization
   std::unique_ptr<FtrVisulization> ftr_visu_;
+
+  // 更新的Blocks的索引列表
+  voxblox::BlockIndexList updated_blocks_;
 };
 
 

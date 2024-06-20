@@ -97,8 +97,8 @@ bool FrontierMap::init()
 
   percep_utils_.reset(new PerceptionUtils(nh_private_));
 
-  frontier_timer_ = nh_private_.createTimer(ros::Duration(0.1), &FrontierMap::frontierCallback, this);
-  visulization_timer_ = nh_private_.createTimer(ros::Duration(0.3), &FrontierMap::visCallback, this);
+  // frontier_timer_ = nh_private_.createTimer(ros::Duration(0.1), &FrontierMap::frontierCallback, this);
+  // visulization_timer_ = nh_private_.createTimer(ros::Duration(0.3), &FrontierMap::visCallback, this);
 
   marker_pub = nh_private_.advertise<visualization_msgs::MarkerArray>("/planning_vis/sample_points", 10000);
 
@@ -109,43 +109,78 @@ bool FrontierMap::init()
 
 void FrontierMap::frontierCallback( const ros::TimerEvent& e ) 
 {
-    static int delay = 0;
-    if (delay++ < 2) return;
+  static int delay = 0;
+  if (delay++ < 2) return;
 
-    // 更新的Blocks的索引列表
-    BlockIndexList updated_blocks;
+  // // 更新的Blocks的索引列表
+  // BlockIndexList updated_blocks_;
 
-    // 获取更新的区块
-    if (!block_idx_updater_.getUpdatedBolocks(updated_blocks)) {
-        ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
-        return; // 如果未初始化，提前返回
-    }
+  // 获取更新的区块
+  if (!block_idx_updater_.getUpdatedBolocks(updated_blocks_)) {
+      ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
+      return; // 如果未初始化，提前返回
+  }
 
-    //  if( !tryone ) {
-      // std::vector<voxblox::BlockIndex> vectorList;
-      // // vectorList.push_back(updated_blocks.front());
-      // vectorList.assign(updated_blocks.begin(), updated_blocks.end());
-      // ftr_visu_->publishBlock( vectorList );
-      // std::cout<< "Finish Publish" << std::endl;
-    //   tryone = true;
-    // }
+  //  if( !tryone ) {
+    // std::vector<voxblox::BlockIndex> vectorList;
+    // // vectorList.push_back(updated_blocks_.front());
+    // vectorList.assign(updated_blocks_.begin(), updated_blocks_.end());
+    // ftr_visu_->publishBlock( vectorList );
+    // std::cout<< "Finish Publish" << std::endl;
+  //   tryone = true;
+  // }
 
-    ros::Time t4 = ros::Time::now();
-    searchFrontiers( updated_blocks );
-    ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
+  ros::Time t4 = ros::Time::now();
+  searchFrontiers();
+  ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
 
-    ros::Time t5 = ros::Time::now();
-    computeFrontiersToVisit();
-    ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t5).toSec());
-    ros::Time t6 = ros::Time::now();
-    updateFrontierCostMatrix();
-    ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t6).toSec());
-    visu_flag_ = true;
+  // ros::Time t5 = ros::Time::now();
+  computeFrontiersToVisit();
+  // ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t5).toSec());
+  // ros::Time t6 = ros::Time::now();
+  updateFrontierCostMatrix();
+  // ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t6).toSec());
+  visu_flag_ = true;
 }
 
 
-void FrontierMap::visCallback( const ros::TimerEvent& e ) 
+// void FrontierMap::visCallback( const ros::TimerEvent& e ) 
+// {
+//   std::vector<std::vector<Eigen::Vector3f>> clusters; 
+//   getFrontiers( clusters );
+//   if( !clusters.empty() ) {
+//     for (int i = 0; i < clusters.size(); ++i ) {
+//       ftr_visu_->drawCubes( clusters[i], 0.1, float(i) / clusters.size(), 0.4, "frontier", i );
+//       // drawCubes( clusters[i], 0.1, getColor(float(i) / clusters.size(), 0.4), "frontier", i );
+//     }
+//   }
+//   visu_flag_ = false;
+// }
+
+
+void FrontierMap::updateFrontierMap()
 {
+  // static int delay = 0;
+  // if (delay++ < 2) return;
+
+  // 获取更新的区块
+  if (!block_idx_updater_.getUpdatedBolocks(updated_blocks_)) {
+      ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
+      return; // 如果未初始化，提前返回
+  }
+
+  ros::Time t4 = ros::Time::now();
+  searchFrontiers();
+  ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
+
+  ros::Time t5 = ros::Time::now();
+  computeFrontiersToVisit();
+  ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t5).toSec());
+  ros::Time t6 = ros::Time::now();
+  updateFrontierCostMatrix();
+  ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t6).toSec());
+
+  if( visu_flag_ ) {
     std::vector<std::vector<Eigen::Vector3f>> clusters; 
     getFrontiers( clusters );
     if( !clusters.empty() ) {
@@ -155,10 +190,11 @@ void FrontierMap::visCallback( const ros::TimerEvent& e )
       }
     }
     visu_flag_ = false;
+  }
 }
 
 
-void FrontierMap::searchFrontiers( voxblox::BlockIndexList &updated_blocks ) 
+void FrontierMap::searchFrontiers() 
 {
   ros::Time t1 = ros::Time::now();
   tmp_frontiers_.clear();
@@ -199,18 +235,18 @@ void FrontierMap::searchFrontiers( voxblox::BlockIndexList &updated_blocks )
 
   // 加上Frontier状态有改变的BlockIndex
   for (const auto& block_idx : edited_block_idx_) {
-    updated_blocks.push_back(block_idx);
+    updated_blocks_.push_back(block_idx);
   }
-  size_t size = updated_blocks.size();
+  size_t size = updated_blocks_.size();
   if( size <= 0 ) return;
 
   edited_block_idx_.clear();
   searched_.clear();
-  std::cout << "updated + edited block size: " << updated_blocks.size() << std::endl;
+  std::cout << "updated + edited block size: " << updated_blocks_.size() << std::endl;
 
 
   // Search new frontier within box slightly inflated from updated box
-  for (const BlockIndex& block_index : updated_blocks) {
+  for (const BlockIndex& block_index : updated_blocks_) {
 
     voxblox::Block<EsdfVoxel>::Ptr esdf_block = esdf_layer_->getBlockPtrByIndex(block_index);
     if (!esdf_block) {
@@ -249,6 +285,7 @@ void FrontierMap::searchFrontiers( voxblox::BlockIndexList &updated_blocks )
   }
 
   splitLargeFrontiers(tmp_frontiers_);
+  visu_flag_ = true;
 }
 
 
@@ -457,17 +494,31 @@ void FrontierMap::getFullCostMatrix( const Eigen::Vector3f& cur_pos, const Eigen
   // Fill block for clusters
   int i = 1, j = 1;
   for (auto ftr : frontiers_) {
+    j = 1; // 重置列索引
     for (auto cs : ftr.costs_) {
-
-      mat(i, j++) = cs;
+      if (i < mat.rows() && j < mat.cols()) {
+        mat(i, j++) = cs;
+      } else {
+        // 错误处理：索引超出范围
+        std::cerr << "Error: Index out of bounds while filling cluster block." << std::endl;
+        return;
+      }
     }
     ++i;
-    j = 1;
   }
 
   // Fill block from current state to clusters
-  mat.leftCols<1>().setZero();
+  
+  if (mat.cols() > 1) {
+    mat.col(0).setZero(); // 初始化第一列为零
+  }
+
+  j = 1;
   for (auto ftr : frontiers_) {
+    if (j >= mat.cols()) {
+      std::cerr << "Error: Index out of bounds while filling current state to clusters block." << std::endl;
+      return;
+    }
     Viewpoint vj = ftr.viewpoints_.front();
     vector<Vector3f> path;
     mat(0, j++) = ViewNode::computeCost( cur_pos, vj.pos_, cur_yaw[0], vj.yaw_, cur_vel, cur_yaw[1], path );

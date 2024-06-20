@@ -7,8 +7,8 @@
 #include <vector>
 
 #include <scoutair_planner/frontier_map.h>
+#include <scoutair_planner/common.h>
 
-using Eigen::Vector3d;
 using std::shared_ptr;
 using std::unique_ptr;
 using std::vector;
@@ -33,12 +33,12 @@ public:
 
   void initialize();
 
-  int planExploreMotion(const Vector3d& pos, const Vector3d& vel, const Vector3d& acc,
-                        const Vector3d& yaw);
+  int planExploreMotion(const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const Eigen::Vector3f& acc,
+                        const Eigen::Vector3f& yaw);
 
   // Benchmark method, classic frontier and rapid frontier
-  int classicFrontier(const Vector3d& pos, const double& yaw);
-  int rapidFrontier(const Vector3d& pos, const Vector3d& vel, const double& yaw, bool& classic);
+  int classicFrontier(const Eigen::Vector3f& pos, const double& yaw);
+  int rapidFrontier(const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const double& yaw, bool& classic);
 
 //   shared_ptr<ExplorationData> ed_;
 //   shared_ptr<ExplorationParam> ep_;
@@ -48,23 +48,27 @@ public:
   std::shared_ptr<FrontierMap> frontiermap_;
 
 private:
-//   shared_ptr<EDTEnvironment> edt_environment_;
-//   shared_ptr<SDFMap> sdf_map_;
-
+  void frontierCallback( const ros::TimerEvent& e );
+  
   // Find optimal tour for coarse viewpoints of all frontiers
-  void findGlobalTour(const Vector3d& cur_pos, const Vector3d& cur_vel, const Vector3d cur_yaw,
-                      vector<int>& indices);
+  void findGlobalTour(const Eigen::Vector3f& cur_pos, const Eigen::Vector3f& cur_vel, const Eigen::Vector3f cur_yaw,
+                      std::vector<int>& indices);
 
   // Refine local tour for next few frontiers, using more diverse viewpoints
-  void refineLocalTour(const Vector3d& cur_pos, const Vector3d& cur_vel, const Vector3d& cur_yaw,
-                       const vector<vector<Vector3d>>& n_points, const vector<vector<double>>& n_yaws,
-                       vector<Vector3d>& refined_pts, vector<double>& refined_yaws);
+  void refineLocalTour(const Eigen::Vector3f& cur_pos, const Eigen::Vector3f& cur_vel, const Eigen::Vector3f& cur_yaw,
+                       const std::vector<std::vector<Eigen::Vector3f>>& n_points, const std::vector<std::vector<double>>& n_yaws,
+                       std::vector<Eigen::Vector3f>& refined_pts, std::vector<double>& refined_yaws);
 
-  void shortenPath(vector<Vector3d>& path);
+  void shortenPath(std::vector<Eigen::Vector3f>& path);
 
   // ROS Parameters
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
+  ros::Timer frontier_timer_;
+
+  std::shared_ptr<ExplorationParam> ep_;
+
+  std::vector<Eigen::Vector3f> global_tour_;
 
 public:
   typedef shared_ptr<ExplorationManager> Ptr;

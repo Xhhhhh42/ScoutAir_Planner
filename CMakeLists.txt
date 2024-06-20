@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.12.0)
 project(scoutair_planner)
 
 set(CMAKE_BUILD_TYPE Debug)
-add_definitions(-std=c++14 -Wall -Wno-sign-compare -Wno-catch-value -Wno-switch -Wno-maybe-uninitialized -Werror=return-type -Wno-dev )
+add_definitions(-std=c++14 -Wall -Wno-sign-compare -Wno-catch-value -Wno-switch -Wno-maybe-uninitialized -Werror=return-type )
 
 find_package(catkin_simple REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -38,5 +38,9 @@ cs_add_executable(exploration_manager_node
   src/exploration_manager_node.cpp
 )
 target_link_libraries(exploration_manager_node ${PROJECT_NAME})
+
+
+cs_install()
+cs_export()
 
 

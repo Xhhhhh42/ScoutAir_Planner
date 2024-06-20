@@ -6,6 +6,8 @@
     <arg name="voxels_per_side" default="16" />
     <arg name="robot_radius" default="0.6" />
     <arg name="clear_radius" default="1.0" />
+    <arg name="max_vel" value="1.0" />
+    <arg name="max_acc" value="1.0" />
 
     <!-- <arg name="bag_file" default="$(find scoutair_planner)/bag/layer_2024-06-12-02-50-12.bag"/> -->
 
@@ -78,15 +80,30 @@
             <param name="frontier/candidate_min" value="0.6" type="double"/>
             <param name="frontier/candidate_max" value="2.0" type="double"/>
             <param name="frontier/down_sample" value="3" type="int"/>;
-            <param name="frontier/min_visib_num" value="7" type="int"/>;
+            <param name="frontier/min_visib_num" value="5" type="int"/>;
             <param name="frontier/min_view_finish_fraction" value="0.2" type="double"/>;
             <param name="frontier/occupancy_distance_voxelsize_factor" value="0.5" type="double"/>;
-
+            
+            <!-- Exploration manager -->
             <!-- A* -->
             <param name="astar/lambda_heu" value="10000.0" type="double"/>
             <param name="astar/resolution_astar" value="0.2" type="double"/>
             <param name="astar/allocate_num" value="1000000" type="int"/>
             <param name="astar/max_search_time" value="0.001" type="double"/>
+            <!-- ViewNode -->
+            <param name="exploration/vm" value="$(eval 1.0 * arg('max_vel'))" type="double"/>
+            <param name="exploration/am" value="$(eval 1.0 * arg('max_acc'))" type="double"/>
+            <param name="exploration/yd" value="$(eval 60 * 3.1415926 / 180.0)" type="double"/>
+            <param name="exploration/ydd" value="$(eval 90 * 3.1415926 / 180.0)" type="double"/>
+            <param name="exploration/w_dir" value="1.5" type="double"/>            
+            <!-- ExplorationParam -->
+            <param name="exploration/refine_local" value="false" type="bool"/>
+            <param name="exploration/refined_num" value="7" type="int"/>
+            <param name="exploration/refined_radius" value="5.0" type="double"/>
+            <param name="exploration/max_decay" value="0.8" type="double"/>
+            <param name="exploration/top_view_num" value="15" type="int"/>
+            <param name="exploration/tsp_dir" value="$(find lkh_tsp_solver)/resource" type="string"/>
+            <param name="exploration/relax_time" value="1.0" type="double"/>
             
 
             <!-- What to do in case of failure. -->

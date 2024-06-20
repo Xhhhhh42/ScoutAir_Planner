@@ -16,6 +16,8 @@
 #include <string>
 #include <thread>
 
+#include <scoutair_planner/exploration_manager.h>
+
 // using Eigen::Vector3d;
 // using std::vector;
 // using std::shared_ptr;
@@ -24,23 +26,42 @@
 
 namespace scoutair_planner {
 
-class FastPlannerManager;
-class FastExplorationManager;
-class PlanningVisualization;
-struct FSMParam;
-struct FSMData;
+// class FastPlannerManager;
+// class FastExplorationManager;
+// class PlanningVisualization;
+// struct FSMParam;
+// struct FSMData;
 
 enum EXPL_STATE { INIT, WAIT_TRIGGER, PLAN_TRAJ, PUB_TRAJ, EXEC_TRAJ, FINISH };
 
-class ExplorationFSM {
+class ExplorationFSM 
+{
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  
+  ExplorationFSM( const ros::NodeHandle& nh, const ros::NodeHandle& nh_private ) 
+    : nh_(nh),
+      nh_private_(nh_private)
+  {}
+
+  ~ExplorationFSM() {}
+
+  void init();
+  
 private:
   /* planning utils */
-  std::shared_ptr<FastPlannerManager> planner_manager_;
-  std::shared_ptr<FastExplorationManager> expl_manager_;
-  std::shared_ptr<PlanningVisualization> visualization_;
+  std::shared_ptr<ExplorationManager> exploration_manager_;
+  // std::shared_ptr<FastPlannerManager> planner_manager_;
+  // std::shared_ptr<FastExplorationManager> expl_manager_;
+  // std::shared_ptr<PlanningVisualization> visualization_;
 
-  std::shared_ptr<FSMParam> fp_;
-  std::shared_ptr<FSMData> fd_;
+  // std::shared_ptr<FSMParam> fp_;
+  // std::shared_ptr<FSMData> fd_;
+  
+  // ROS Parameters
+  ros::NodeHandle nh_;
+  ros::NodeHandle nh_private_;
+
   EXPL_STATE state_;
 
   bool classic_;
@@ -62,17 +83,24 @@ private:
   void triggerCallback(const nav_msgs::PathConstPtr& msg);
   void odometryCallback(const nav_msgs::OdometryConstPtr& msg);
   void visualize();
-  void clearVisMarker();
+  // void clearVisMarker();
 
-public:
-  ExplorationFSM(/* args */) {
-  }
-  ~ExplorationFSM() {
-  }
+  // FSM data
+  bool trigger_, have_odom_, static_state_;
+  vector<string> state_str_;
 
-  void init(ros::NodeHandle& nh);
+  Eigen::Vector3d odom_pos_, odom_vel_;  // odometry state
+  Eigen::Quaterniond odom_orient_;
+  double odom_yaw_;
 
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  Eigen::Vector3d start_pt_, start_vel_, start_acc_, start_yaw_;  // start state
+  vector<Eigen::Vector3d> start_poss;
+  // bspline::Bspline newest_traj_;
+
+  double replan_thresh1_;
+  double replan_thresh2_;
+  double replan_thresh3_;
+  double replan_time_;  // second
 };
 
 }  // namespace scoutair_planner

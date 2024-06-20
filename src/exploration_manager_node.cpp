@@ -9,8 +9,6 @@ int main(int argc, char** argv) {
 
     scoutair_planner::ExplorationManager exploration_manager( nh, nh_private );
 
-    std::cout<<"heihei"<<std::endl;
-
     ros::spin();
 
     return 0;
