@@ -4,7 +4,7 @@ Maintainer: Yuchen Xia
 ## Introduction 
 
 <p align="center">
-<img src="./doc/exploration_frontier_map.png" alt="Frontier Map" width="500" height="500">
+<img src="./doc/exploration_frontier_map.png" alt="Frontier Map" width="600" height="500">
 </p>
 
 
