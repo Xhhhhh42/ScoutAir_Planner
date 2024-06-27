@@ -94,6 +94,8 @@ private:
   double replan_thresh2_;
   double replan_thresh3_;
   double replan_time_;  // second
+
+  bool ready_to_fly_;
 };
 
 }  // namespace scoutair_planner

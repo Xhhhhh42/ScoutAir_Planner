@@ -39,6 +39,8 @@ public:
   // Search frontiers and group them into clusters
   void searchFrontiers();
 
+  void checkFrontiers();
+
   void computeFrontiersToVisit();
 
   void getFrontiers( std::vector<std::vector<Eigen::Vector3f>>& clusters );
@@ -68,7 +70,7 @@ public:
 
   bool isInBox( const Eigen::Vector3f &pos ) const;
 
-  void findScanZone( Eigen::Vector3f &odom_pos, float &odom_yaw, voxblox::BlockIndexList &updated_blocks );
+  void findScanZone( Eigen::Vector3f &odom_pos, float odom_yaw, voxblox::BlockIndexList &updated_blocks );
 
   void setOdom( Eigen::Vector3f &odom_pos, float &odom_yaw );
 
@@ -87,7 +89,7 @@ public:
 
   Eigen::Vector3f voxbloxmap_origin_;
 
-  esdf_idx_updater::BlockIdxUpdater block_idx_updater_;
+  // esdf_idx_updater::BlockIdxUpdater block_idx_updater_;
   // Visulization
   std::shared_ptr<FtrVisulization> ftr_visu_;
 
@@ -187,6 +189,7 @@ private:
   float odom_yaw_;
   voxblox::BlockIndex odom_block_index_;
   float half_theta_;
+  bool have_odom_;
 };
 
 

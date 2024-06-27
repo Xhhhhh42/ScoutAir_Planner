@@ -27,20 +27,19 @@ int FrontierMap::num_voxels_per_block_;
 
 FrontierMap::FrontierMap( const ros::NodeHandle& nh, const ros::NodeHandle& nh_private ) 
   : nh_(nh),
-    nh_private_(nh_private),
-    block_idx_updater_(nh, nh_private),
-    voxblox_map_(std::make_unique<VoxbloxMap>(nh, nh_private)),
-    esdf_layer_(voxblox_map_->getESDFLayerSharedPtr()),
-    ftr_visu_(std::make_shared<FtrVisulization>(nh, nh_private, voxblox_map_))
+    nh_private_(nh_private)
+    // block_idx_updater_(nh, nh_private),
+    // voxblox_map_(std::make_shared<VoxbloxMap>(nh, nh_private)),
+    // esdf_layer_(voxblox_map_->getESDFLayerSharedPtr()),
+    // ftr_visu_(std::make_shared<FtrVisulization>(nh, nh_private, voxblox_map_))
 {
-  // voxblox_map_.reset(new VoxbloxMap(nh, nh_private));
-  // esdf_layer_ = voxblox_map_->getESDFLayerSharedPtr();
-  ROS_INFO("Init FrontierMap...");
+  voxblox_map_.reset(new VoxbloxMap(nh_, nh_private_));
+  esdf_layer_ = voxblox_map_->getESDFLayerSharedPtr();
+  ftr_visu_ = std::make_shared<FtrVisulization>(nh, nh_private, voxblox_map_);
 }
 
 
-FrontierMap::~FrontierMap() {
-}
+FrontierMap::~FrontierMap() {}
 
 
 bool FrontierMap::init()
@@ -116,11 +115,11 @@ void FrontierMap::frontierCallback( const ros::TimerEvent& e )
   static int delay = 0;
   if (delay++ < 2) return;
 
-  // 获取更新的区块
-  if (!block_idx_updater_.getUpdatedBolocks(updated_blocks_)) {
-      ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
-      return; // 如果未初始化，提前返回
-  }
+  // // 获取更新的区块
+  // if (!block_idx_updater_.getUpdatedBolocks(updated_blocks_)) {
+  //     ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
+  //     return; // 如果未初始化，提前返回
+  // }
 
   ros::Time t4 = ros::Time::now();
   searchFrontiers();
@@ -182,12 +181,6 @@ bool FrontierMap::initFrontierMap()
 
 void FrontierMap::updateFrontierMap()
 {
-  // // 获取更新的区块
-  // if (!block_idx_updater_.getUpdatedBolocks(updated_blocks_)) {
-  //   ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
-  //   return; // 如果未初始化，提前返回
-  // }
-
   // esdf_layer_->getAllAllocatedBlocks(&updated_blocks_);
   // if( updated_blocks_.empty() ) {
   //   ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
@@ -196,15 +189,15 @@ void FrontierMap::updateFrontierMap()
   
   ros::Time t3 = ros::Time::now();
   findScanZone( odom_pos_, odom_yaw_, updated_blocks_ );
+  ROS_WARN( "current time: %lf", ros::Time::now().toSec());
   ROS_WARN( "findZone: %lf", (ros::Time::now() - t3).toSec());
+
+  checkFrontiers();
 
   ros::Time t4 = ros::Time::now();
   searchFrontiers();
+  ROS_WARN( "current time: %lf", ros::Time::now().toSec());
   ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
-
-  // thread vis_thread(&FrontierMap::visualizeFrontiers, this);
-  // vis_thread.detach();
-  visualizeFrontiers();
 
   ros::Time t5 = ros::Time::now();
   computeFrontiersToVisit();
@@ -215,7 +208,7 @@ void FrontierMap::updateFrontierMap()
 }
 
 
-void FrontierMap::findScanZone( Eigen::Vector3f &odom_pos, float &odom_yaw, voxblox::BlockIndexList &updated_blocks )
+void FrontierMap::findScanZone( Eigen::Vector3f &odom_pos, float odom_yaw, voxblox::BlockIndexList &updated_blocks )
 {
   voxblox::BlockIndex odom_block_index = voxblox_map_->getBlockIndexFromPoint( odom_pos );
   if( odom_block_index != odom_block_index_ ) 
@@ -327,31 +320,49 @@ void FrontierMap::findScanZone( Eigen::Vector3f &odom_pos, float &odom_yaw, voxb
 
 void FrontierMap::setOdom( Eigen::Vector3f &odom_pos, float &odom_yaw )
 {
-  if( odom_pos.z() <= 0.5 ) {
+  if( odom_pos.z() <= 0.8 ) {
     ROS_WARN( "Insufficient current altitude of drone");
+    return;
+  }
+  if( !have_odom_ ) {
+    odom_pos_ = odom_pos;
+    odom_yaw_ = odom_yaw;
+    have_odom_ = true;
     return;
   }
 
   // Define a threshold for significant change
-  float pos_threshold = 0.1f; 
-  float yaw_threshold = 0.0174533; // Yaw threshold in radians (~1 degree)
+  float pos_threshold = 0.25f; 
+  float yaw_threshold = 5.0 * M_PI / 180.0; // Yaw threshold in radians (~5 degree)
 
   // Check if there is a significant difference in position or yaw
   bool pos_diff = (odom_pos_ - odom_pos).norm() > pos_threshold;
   bool yaw_diff = std::abs(odom_yaw_ - odom_yaw) > yaw_threshold;
 
+  // if( pos_diff ) {
+  //   ROS_WARN( "Motion detected");
+  //   std::cout << "current pos: " << odom_pos_ << std::endl;
+  //   std::cout << "new pos: " << odom_pos << std::endl;
+  // }
+  if( yaw_diff ) {
+    ROS_WARN( "Rotation detected");
+    std::cout << "current yaw: " << odom_yaw_ << std::endl;
+    std::cout << "new yaw: " << odom_yaw << std::endl;
+  }
+
   if (pos_diff || yaw_diff) {
     odom_pos_ = odom_pos;
     odom_yaw_ = odom_yaw;
+    ROS_WARN( "updateFrontierMap start: %lf", ros::Time::now().toSec());
     updateFrontierMap();
+    ROS_WARN( "updateFrontierMap end: %lf", ros::Time::now().toSec());
   }
 }
 
 
-void FrontierMap::searchFrontiers() 
+void FrontierMap::checkFrontiers()
 {
-  ros::Time t1 = ros::Time::now();
-  tmp_frontiers_.clear();
+  edited_block_idx_.clear();
 
   // Removed changed frontiers in updated blocks
   auto resetFlag = [&](list<Frontier>::iterator& iter, list<Frontier>& frontiers ) 
@@ -369,25 +380,61 @@ void FrontierMap::searchFrontiers()
   removed_ids_.clear();
   int rmv_idx = 0;
 
-  // for (auto iter = frontiers_.begin(); iter != frontiers_.end();) 
-  // {
-  //   if( isFrontierChanged(*iter) ) 
-  //   {
-  //     resetFlag(iter, frontiers_);
-  //     removed_ids_.push_back(rmv_idx);
-  //   } else {
-  //     ++rmv_idx;
-  //     ++iter;
-  //   }
-  // }
+  for (auto iter = frontiers_.begin(); iter != frontiers_.end();) 
+  {
+    bool found = false;
+    for( const auto& block_id : iter->block_idx_ ) {
+      if( std::find(updated_blocks_.begin(), updated_blocks_.end(), block_id) != updated_blocks_.end() ) {
+        if( isFrontierChanged(*iter) ) 
+          {
+            resetFlag(iter, frontiers_);
+            removed_ids_.push_back(rmv_idx);
+            found = true;
+            break;
+          }
+      }
+    }
+    if( found ) continue;
+    ++rmv_idx;
+    ++iter;
+    // if( isFrontierChanged(*iter) ) 
+    // {
+    //   resetFlag(iter, frontiers_);
+    //   removed_ids_.push_back(rmv_idx);
+    // } else {
+    //   ++rmv_idx;
+    //   ++iter;
+    // }
+  }
 
-  // for (auto iter = dormant_frontiers_.begin(); iter != dormant_frontiers_.end();) 
-  // {
-  //   if( isFrontierChanged(*iter) ) 
-  //     { resetFlag(iter, dormant_frontiers_); } 
-  //   else 
-  //     { ++iter; }
-  // }
+  for (auto iter = dormant_frontiers_.begin(); iter != dormant_frontiers_.end();) 
+  {
+    // if( isFrontierChanged(*iter) ) 
+    //   { resetFlag(iter, dormant_frontiers_); } 
+    // else 
+    //   { ++iter; }
+    bool found = false;
+    for( const auto& block_id : iter->block_idx_ ) {
+      if( std::find(updated_blocks_.begin(), updated_blocks_.end(), block_id) != updated_blocks_.end() ) {
+        if( isFrontierChanged(*iter) ) 
+          {
+            resetFlag(iter, frontiers_);
+            // removed_ids_.push_back(rmv_idx);
+            found = true;
+            break;
+          }
+      }
+    }
+    if( found ) continue;
+    // ++rmv_idx;
+    ++iter;
+  }
+}
+
+
+void FrontierMap::searchFrontiers() 
+{
+  tmp_frontiers_.clear();
 
   voxblox::BlockIndexList final_list;
   // 加上Frontier状态有改变的BlockIndex
@@ -401,8 +448,7 @@ void FrontierMap::searchFrontiers()
   }
   size_t size = final_list.size();
   if( size <= 0 ) return;
-
-  edited_block_idx_.clear();
+  
   searched_.clear();
   std::cout << "updated + edited block size: " << final_list.size() << std::endl;
 

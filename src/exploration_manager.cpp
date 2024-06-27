@@ -41,11 +41,7 @@ ExplorationManager::~ExplorationManager()
 
 void ExplorationManager::initialize() 
 {
-//   planner_manager_.reset(new FastPlannerManager);
-//   planner_manager_->initPlanModules(nh);
   // view_finder_.reset(new ViewFinder(edt_environment_, nh));
-
-//   ed_.reset(new ExplorationData);
   
   frontiermap_.reset(new FrontierMap( nh_, nh_private_ ));
   frontiermap_->init();
@@ -114,7 +110,7 @@ void ExplorationManager::frontierCallback( const ros::TimerEvent& e )
 int ExplorationManager::planExploreMotion( const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const Eigen::Vector3f& acc, const Eigen::Vector3f& yaw ) 
 {
   ros::Time t1 = ros::Time::now();
-  auto t2 = t1;
+  // auto t2 = t1;
   vector<Vector3f> views_;
   vector<vector<Vector3f>> frontiers_;
   vector<Vector3f> points_;

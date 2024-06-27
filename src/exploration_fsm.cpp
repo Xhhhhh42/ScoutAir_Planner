@@ -25,13 +25,15 @@ void ExplorationFSM::init() {
   trigger_ = false; 
 
   /* Ros sub, pub and timer */
-  exec_timer_ = nh_private_.createTimer(ros::Duration(0.1), &ExplorationFSM::FSMCallback, this);
+  exec_timer_ = nh_private_.createTimer(ros::Duration(0.3), &ExplorationFSM::FSMCallback, this);
   frontier_timer_ = nh_private_.createTimer(ros::Duration(0.3), &ExplorationFSM::frontierCallback, this);
 
   trigger_sub_ = nh_private_.subscribe("/move_base_simple/goal", 1, &ExplorationFSM::triggerCallback, this);
   odom_sub_ = nh_private_.subscribe("odometry", 1, &ExplorationFSM::odometryCallback, this);
 
   controller_pub_ = nh_private_.advertise<geometry_msgs::PoseStamped>( "command/pose", 1, false );
+
+  ready_to_fly_ = false;
 
   std::cout << "ExplorationFSM inited" << std::endl;
 }
@@ -43,16 +45,18 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
 
   switch (state_) {
     case INIT: {
+
       // Wait for odometry ready
       if (!have_odom_ ) {
         ROS_WARN_THROTTLE(3.0, "No odom.");
         return;
       }
+
       if ( odom_pos_(2) < 0.9 ) {
         ROS_WARN_THROTTLE(3.0, "Drone take off.");
         return;
       }
-      // exploration_manager_->frontiermap_->initFrontierMap();
+
       transitState(ROTATE, "FSM");
       break;
     }
@@ -64,20 +68,19 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
         ros::Duration(4.0).sleep();
         droneRotate();
         // exploration_manager_->frontiermap_->initFrontierMap();
-        std::cout<< "drone rotates "<< std::endl; 
+        // std::cout<< "drone rotates "<< std::endl; 
         time++;
         return;
       }
-      // ros::Duration(5.0).sleep();
+      ros::Duration(5.0).sleep();
       exploration_manager_->frontiermap_->initFrontierMap();
-      
       // Go to wait trigger when first update frontier map
       transitState(WAIT_TRIGGER, "FSM");
+      ready_to_fly_ = true;
       break;
     }
 
     case WAIT_TRIGGER: {
-      ros::Duration(5.0).sleep();
       // Do nothing but wait for trigger
       ROS_WARN_THROTTLE(3.0, "Wait for trigger.");
       break;
@@ -147,7 +150,7 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
 
 int ExplorationFSM::callExplorationPlanner() 
 {
-  ros::Time time_r = ros::Time::now() + ros::Duration(replan_time_);
+  // ros::Time time_r = ros::Time::now() + ros::Duration(replan_time_);
 
   int res = exploration_manager_->planExploreMotion( start_pt_, start_vel_, start_acc_, start_yaw_ );
   classic_ = false;
@@ -184,14 +187,17 @@ int ExplorationFSM::callExplorationPlanner()
 }
 
 
-void ExplorationFSM::frontierCallback(const ros::TimerEvent& e) {
-  static int delay = 0;
-  if (++delay < 5) return;
+void ExplorationFSM::frontierCallback(const ros::TimerEvent& e) 
+{
+  if( !ready_to_fly_ || !have_odom_ ) 
+    return;
 
-  // if (state_ == WAIT_TRIGGER || state_ == FINISH) {
-  //   auto ft = exploration_manager_->frontiermap_;
-  //   ft->updateFrontierMap();
-  // }
+  static int delay = 0;
+  if( delay++ < 5 ) 
+    return;
+
+  exploration_manager_->frontiermap_->setOdom( odom_pos_, odom_yaw_ );
+  exploration_manager_->frontiermap_->visualizeFrontiers();
 }
 
 
@@ -224,7 +230,6 @@ void ExplorationFSM::odometryCallback(const nav_msgs::OdometryConstPtr& msg)
   odom_yaw_ = atan2(rot_x(1), rot_x(0)); // radian
 
   // std::cout<<"current_yaw: " << odom_yaw_ << endl;
-
   have_odom_ = true;
 }
 
@@ -264,7 +269,8 @@ void ExplorationFSM::droneRotate()
 
   geometry_msgs::PoseStamped pose;
   pose.header.frame_id = "world";
-  pose.pose.position.x = odom_pos_.x(); 
+  // pose.pose.position.x = odom_pos_.x() + 0.5; 
+  pose.pose.position.x = 0.5; 
   pose.pose.position.y = odom_pos_.y();
   pose.pose.position.z = 1.5;
 
