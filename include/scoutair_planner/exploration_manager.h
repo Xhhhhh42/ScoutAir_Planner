@@ -36,15 +36,6 @@ public:
   int planExploreMotion(const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const Eigen::Vector3f& acc,
                         const Eigen::Vector3f& yaw);
 
-  // Benchmark method, classic frontier and rapid frontier
-  int classicFrontier(const Eigen::Vector3f& pos, const double& yaw);
-  int rapidFrontier(const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const double& yaw, bool& classic);
-
-//   shared_ptr<ExplorationData> ed_;
-//   shared_ptr<ExplorationParam> ep_;
-//   shared_ptr<FastPlannerManager> planner_manager_;
-//   shared_ptr<FrontierFinder> frontier_finder_;
-  // unique_ptr<ViewFinder> view_finder_;
   std::shared_ptr<FrontierMap> frontiermap_;
 
 private:
@@ -56,8 +47,8 @@ private:
 
   // Refine local tour for next few frontiers, using more diverse viewpoints
   void refineLocalTour(const Eigen::Vector3f& cur_pos, const Eigen::Vector3f& cur_vel, const Eigen::Vector3f& cur_yaw,
-                       const std::vector<std::vector<Eigen::Vector3f>>& n_points, const std::vector<std::vector<double>>& n_yaws,
-                       std::vector<Eigen::Vector3f>& refined_pts, std::vector<double>& refined_yaws);
+                       const std::vector<std::vector<Eigen::Vector3f>>& n_points, const std::vector<std::vector<float>>& n_yaws,
+                       std::vector<Eigen::Vector3f>& refined_pts, std::vector<float>& refined_yaws);
 
   void shortenPath(std::vector<Eigen::Vector3f>& path);
 
@@ -67,11 +58,15 @@ private:
   ros::Timer frontier_timer_;
 
   std::shared_ptr<ExplorationParam> ep_;
+  std::shared_ptr<ExplorationData> ed_;
 
   std::vector<Eigen::Vector3f> global_tour_;
 
 public:
   typedef shared_ptr<ExplorationManager> Ptr;
+
+  // Visulization
+  std::shared_ptr<FtrVisulization> manager_visu_;
 };
 
 }  // namespace scoutair_planner

@@ -28,6 +28,7 @@ cs_add_library(${PROJECT_NAME}
   src/frontier_visulization.cpp
   src/graph_node.cpp
   src/astar2.cpp
+  src/exploration_fsm.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${OMPL_LIBRARIES} ${Boost_LIBRARIES})
 
@@ -38,6 +39,11 @@ cs_add_executable(exploration_manager_node
   src/exploration_manager_node.cpp
 )
 target_link_libraries(exploration_manager_node ${PROJECT_NAME})
+
+cs_add_executable(exploration_fsm_node
+  src/exploration_fsm_node.cpp
+)
+target_link_libraries(exploration_fsm_node ${PROJECT_NAME})
 
 
 cs_install()

@@ -25,10 +25,14 @@ class FrontierMap
 public:
   typedef Eigen::Matrix<voxblox::LongIndexElement, 2, 8> IndexOffsets;
 
+  enum ScanAxis { x_pos = 0, x_neg, y_pos, y_neg };
+
   FrontierMap( const ros::NodeHandle& nh, const ros::NodeHandle& nh_private );
   ~FrontierMap();
 
   bool init();
+
+  bool initFrontierMap();
 
   void updateFrontierMap();
 
@@ -39,7 +43,6 @@ public:
 
   void getFrontiers( std::vector<std::vector<Eigen::Vector3f>>& clusters );
   void getDormantFrontiers( std::vector<std::vector<Eigen::Vector3f>>& clusters );
-  void getFrontierBoxes( std::vector<std::pair<Eigen::Vector3f, Eigen::Vector3f>>& boxes );
 
   void getTopViewpointsInfo( const Eigen::Vector3f& cur_pos, std::vector<Eigen::Vector3f>& points, 
                              std::vector<float>& yaws, std::vector<Eigen::Vector3f>& averages ); 
@@ -50,7 +53,7 @@ public:
   
   void frontierCallback( const ros::TimerEvent& e );
 
-  void visCallback( const ros::TimerEvent& e );
+  // void visCallback( const ros::TimerEvent& e );
                           
   void updateFrontierCostMatrix();
 
@@ -59,9 +62,17 @@ public:
                          
   void getPathForTour( const Eigen::Vector3f& pos, const std::vector<int>& frontier_ids, std::vector<Eigen::Vector3f>& path );
 
+  void visualizeFrontiers();
+
   bool whitelist( const Eigen::Vector3i &idx );
 
   bool isInBox( const Eigen::Vector3f &pos ) const;
+
+  void findScanZone( Eigen::Vector3f &odom_pos, float &odom_yaw, voxblox::BlockIndexList &updated_blocks );
+
+  void setOdom( Eigen::Vector3f &odom_pos, float &odom_yaw );
+
+  FrontierMap::ScanAxis getScanAxisFromNum(int num); 
 
   // Voxblox Map
   std::shared_ptr<VoxbloxMap> voxblox_map_;
@@ -75,6 +86,10 @@ public:
   static int num_voxels_per_block_;
 
   Eigen::Vector3f voxbloxmap_origin_;
+
+  esdf_idx_updater::BlockIdxUpdater block_idx_updater_;
+  // Visulization
+  std::shared_ptr<FtrVisulization> ftr_visu_;
 
 private:
   
@@ -108,6 +123,12 @@ private:
 
   void wrapYaw(float& yaw);
 
+  bool ifBlockinFOV( Eigen::Vector3f &odom_pos, float &odom_yaw, voxblox::BlockIndex &goal_idx );
+
+  bool ifPointinFOV( Eigen::Vector3f &odom_pos, float &start_theta, float &end_theta, const voxblox::Point &point );
+
+  void filterBlocksWithZEqualToZero( voxblox::BlockIndexList &updated_blocks );
+
   int countVisibleCells(const Eigen::Vector3f& pos, const float& yaw, const std::vector<Eigen::Vector3f>& cluster);
 
   Eigen::Vector3i globalIndexToEigenVector3i( voxblox::GlobalIndex& global_index );
@@ -117,11 +138,9 @@ private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
 
-  ros::Timer frontier_timer_, visulization_timer_;
+  // ros::Timer frontier_timer_, visulization_timer_;
 
   ros::Publisher marker_pub;
-
-  esdf_idx_updater::BlockIdxUpdater block_idx_updater_;
 
   // Frontier Map
   // static Eigen::Vector3i box_min_, box_max_, map_voxel_num_;
@@ -160,11 +179,14 @@ private:
   std::shared_ptr<boost::dynamic_bitset<>> ganzfree_bit_;
   std::unordered_set<int> frontier_flag_;
 
-  // Visulization
-  std::unique_ptr<FtrVisulization> ftr_visu_;
-
   // 更新的Blocks的索引列表
   voxblox::BlockIndexList updated_blocks_;
+
+  Eigen::Vector3f odom_pos_;  // odometry state
+  Eigen::Quaternionf odom_orient_;
+  float odom_yaw_;
+  voxblox::BlockIndex odom_block_index_;
+  float half_theta_;
 };
 
 
@@ -227,6 +249,23 @@ inline bool FrontierMap::isInBox( const voxblox::BlockIndex &block_index, const 
     }
     return true;
 }
+
+inline FrontierMap::ScanAxis FrontierMap::getScanAxisFromNum(int num) 
+{
+  switch(num) {
+    case 0:
+      return FrontierMap::ScanAxis::x_pos;
+    case 1:
+      return FrontierMap::ScanAxis::x_neg;
+    case 2:
+      return FrontierMap::ScanAxis::y_pos;
+    case 3:
+      return FrontierMap::ScanAxis::y_neg;
+    default:
+      return FrontierMap::ScanAxis::x_pos; // or handle the error appropriately
+  }
+}
+
 
 }  // namespace scoutair_planner
 #endif

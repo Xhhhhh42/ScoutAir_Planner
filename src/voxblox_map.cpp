@@ -99,12 +99,13 @@ VoxbloxMap::VoxelStatus VoxbloxMap::checkVoxelStatus( const voxblox::EsdfVoxel* 
                                                         const voxblox::FloatingPoint &esdf_max_distance_m, 
                                                         const float &distance_thres ) const
 {
+  // std::cout<<"checkVoxelStatus"<<std::endl;
   if( voxel == nullptr || !voxel->observed || 
-      voxel->distance + 4 * distance_thres >= esdf_max_distance_m || 
+      voxel->distance + 3 * distance_thres >= esdf_max_distance_m || 
       voxel->distance <= -esdf_max_distance_m )
     { return VoxelStatus::kUnknown; }
 
-  if( voxel->distance >= distance_thres )
+  if( voxel->distance >= 2 * distance_thres )
     { return VoxelStatus::kFree; }
 
   if (voxel->fixed) 
@@ -210,9 +211,8 @@ bool VoxbloxMap::isNearUnknown( const voxblox::GlobalIndex &global_voxel_index, 
         voxblox::EsdfVoxel* voxel = esdf_layer_->getVoxelPtrByGlobalIndex(new_index);
 
         // 预先保存需要检查的状态
-        if( checkVoxelStatus(voxel, esdf_max_distance_m_, distance_thres_) == VoxelStatus::kUnknown) {
-          return true;
-        }
+        if( checkVoxelStatus(voxel, esdf_max_distance_m_, distance_thres_) != VoxelStatus::kFree ) 
+          { return true; }
       }
     }
   }
@@ -236,7 +236,7 @@ bool VoxbloxMap::isNearUnknown( const Eigen::Vector3d& pos, const int &vox_num_n
           { continue; }
         Eigen::Vector3d vox;
         vox << pos[0] + x * voxel_size_d_, pos[1] + y * voxel_size_d_, pos[2] + z * voxel_size_d_;
-        if ( checkVoxelDistance(vox) == VoxelStatus::kUnknown ) return true;
+        if ( checkVoxelDistance(vox) != VoxelStatus::kFree ) return true;
       }
   return false;
 }

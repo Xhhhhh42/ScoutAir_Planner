@@ -1,9 +1,11 @@
+#include <thread>
+#include <pcl/filters/voxel_grid.h>
+#include <visualization_msgs/Marker.h>
+
 #include <scoutair_planner/frontier_map.h>
 #include <scoutair_planner/graph_node.h>
 #include <scoutair_planner/graph_node.h>
 
-#include <pcl/filters/voxel_grid.h>
-#include <visualization_msgs/Marker.h>
 
 namespace scoutair_planner {
 
@@ -29,7 +31,7 @@ FrontierMap::FrontierMap( const ros::NodeHandle& nh, const ros::NodeHandle& nh_p
     block_idx_updater_(nh, nh_private),
     voxblox_map_(std::make_unique<VoxbloxMap>(nh, nh_private)),
     esdf_layer_(voxblox_map_->getESDFLayerSharedPtr()),
-    ftr_visu_(std::make_unique<FtrVisulization>(nh, nh_private, voxblox_map_))
+    ftr_visu_(std::make_shared<FtrVisulization>(nh, nh_private, voxblox_map_))
 {
   // voxblox_map_.reset(new VoxbloxMap(nh, nh_private));
   // esdf_layer_ = voxblox_map_->getESDFLayerSharedPtr();
@@ -102,6 +104,8 @@ bool FrontierMap::init()
 
   marker_pub = nh_private_.advertise<visualization_msgs::MarkerArray>("/planning_vis/sample_points", 10000);
 
+  half_theta_ = std::atan2(4.0f, 3.0f);
+
   std::cout << "Frontier Map inited" << std::endl;
   return true;
 }
@@ -112,34 +116,18 @@ void FrontierMap::frontierCallback( const ros::TimerEvent& e )
   static int delay = 0;
   if (delay++ < 2) return;
 
-  // // 更新的Blocks的索引列表
-  // BlockIndexList updated_blocks_;
-
   // 获取更新的区块
   if (!block_idx_updater_.getUpdatedBolocks(updated_blocks_)) {
       ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
       return; // 如果未初始化，提前返回
   }
 
-  //  if( !tryone ) {
-    // std::vector<voxblox::BlockIndex> vectorList;
-    // // vectorList.push_back(updated_blocks_.front());
-    // vectorList.assign(updated_blocks_.begin(), updated_blocks_.end());
-    // ftr_visu_->publishBlock( vectorList );
-    // std::cout<< "Finish Publish" << std::endl;
-  //   tryone = true;
-  // }
-
   ros::Time t4 = ros::Time::now();
   searchFrontiers();
   ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
 
-  // ros::Time t5 = ros::Time::now();
   computeFrontiersToVisit();
-  // ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t5).toSec());
-  // ros::Time t6 = ros::Time::now();
   updateFrontierCostMatrix();
-  // ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t6).toSec());
   visu_flag_ = true;
 }
 
@@ -158,16 +146,22 @@ void FrontierMap::frontierCallback( const ros::TimerEvent& e )
 // }
 
 
-void FrontierMap::updateFrontierMap()
+bool FrontierMap::initFrontierMap()
 {
-  // static int delay = 0;
-  // if (delay++ < 2) return;
+  // // 获取更新的区块
+  // if (!block_idx_updater_.getUpdatedBolocks(updated_blocks_)) {
+  //   ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
+  //   return false; // 如果未初始化，提前返回
+  // }
 
-  // 获取更新的区块
-  if (!block_idx_updater_.getUpdatedBolocks(updated_blocks_)) {
-      ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
-      return; // 如果未初始化，提前返回
+  updated_blocks_.clear();
+  esdf_layer_->getAllAllocatedBlocks(&updated_blocks_);
+  if( updated_blocks_.empty() ) {
+    ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
+    return false; // 如果未初始化，提前返回
   }
+
+  // filterBlocksWithZEqualToZero(updated_blocks_);
 
   ros::Time t4 = ros::Time::now();
   searchFrontiers();
@@ -176,20 +170,180 @@ void FrontierMap::updateFrontierMap()
   ros::Time t5 = ros::Time::now();
   computeFrontiersToVisit();
   ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t5).toSec());
+  visualizeFrontiers();
   ros::Time t6 = ros::Time::now();
   updateFrontierCostMatrix();
   ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t6).toSec());
 
-  if( visu_flag_ ) {
-    std::vector<std::vector<Eigen::Vector3f>> clusters; 
-    getFrontiers( clusters );
-    if( !clusters.empty() ) {
-      for (int i = 0; i < clusters.size(); ++i ) {
-        ftr_visu_->drawCubes( clusters[i], 0.1, float(i) / clusters.size(), 0.4, "frontier", i );
-        // drawCubes( clusters[i], 0.1, getColor(float(i) / clusters.size(), 0.4), "frontier", i );
-      }
+  ROS_WARN_ONCE( "Frontier Map inited from ESDF map... ");
+  return true;
+}
+
+
+void FrontierMap::updateFrontierMap()
+{
+  // // 获取更新的区块
+  // if (!block_idx_updater_.getUpdatedBolocks(updated_blocks_)) {
+  //   ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
+  //   return; // 如果未初始化，提前返回
+  // }
+
+  // esdf_layer_->getAllAllocatedBlocks(&updated_blocks_);
+  // if( updated_blocks_.empty() ) {
+  //   ROS_WARN_THROTTLE( 2.0, "Wait until ESDF map from voxblox node..." );
+  //   return; // 如果未初始化，提前返回
+  // }
+  
+  ros::Time t3 = ros::Time::now();
+  findScanZone( odom_pos_, odom_yaw_, updated_blocks_ );
+  ROS_WARN( "findZone: %lf", (ros::Time::now() - t3).toSec());
+
+  ros::Time t4 = ros::Time::now();
+  searchFrontiers();
+  ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
+
+  // thread vis_thread(&FrontierMap::visualizeFrontiers, this);
+  // vis_thread.detach();
+  visualizeFrontiers();
+
+  ros::Time t5 = ros::Time::now();
+  computeFrontiersToVisit();
+  ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t5).toSec());
+  ros::Time t6 = ros::Time::now();
+  updateFrontierCostMatrix();
+  ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t6).toSec());
+}
+
+
+void FrontierMap::findScanZone( Eigen::Vector3f &odom_pos, float &odom_yaw, voxblox::BlockIndexList &updated_blocks )
+{
+  voxblox::BlockIndex odom_block_index = voxblox_map_->getBlockIndexFromPoint( odom_pos );
+  if( odom_block_index != odom_block_index_ ) 
+    { odom_block_index_ = odom_block_index; }
+  
+  updated_blocks.clear();
+  updated_blocks.push_back(odom_block_index_);
+  normalizeYaw( odom_yaw );
+
+  for (int dx = -2; dx <= 2; ++dx) {
+    for (int dy = -2; dy <= 2; ++dy) {
+      if (dx == 0 && dy == 0) continue;
+
+      voxblox::BlockIndex goal_idx = odom_block_index_;
+      goal_idx.x() += dx;
+      goal_idx.y() += dy;
+
+      if( ifBlockinFOV( odom_pos, odom_yaw, goal_idx ) ) {
+        updated_blocks.push_back(goal_idx);
+      }      
     }
-    visu_flag_ = false;
+  }
+
+  // int num = 0;
+  // while( theta1 >= M_PI / 2 ) {
+  //   theta1 -= M_PI / 2;
+  //   num++;
+  // }
+  // ScanAxis theta1_axis = getScanAxisFromNum(num);
+  // num = 0;
+  // while( theta2 >= M_PI / 2 ) {
+  //   theta2 -= M_PI / 2;
+  //   num++;
+  // }
+  // ScanAxis theta2_axis = getScanAxisFromNum(num);
+
+  // voxblox::BlockIndex tmp;
+  // float angle1 = std::asin(1.6 / 3.0) * 180.0 / M_PI;;
+  // switch (theta1_axis)
+  // {
+  //   case  x_pos:
+  //     tmp = odom_block_index;
+  //     tmp.x() += 1;
+  //     updated_blocks_.push_back(tmp);
+  //     tmp.x() += 1;
+  //     updated_blocks_.push_back(tmp);
+  //     if( theta1 > angle1 ) { 
+  //       tmp.y() += 1;
+  //       updated_blocks_.push_back(tmp);
+  //     }
+  //     if( theta1 > M_PI / 4 ) {
+  //       tmp.x() -= 1;
+  //       updated_blocks_.push_back(tmp);
+  //     }
+  //     break;
+
+  //   case  x_neg:
+  //     tmp = odom_block_index;
+  //     tmp.x() -= 1;
+  //     updated_blocks_.push_back(tmp);
+  //     tmp.x() -= 1;
+  //     updated_blocks_.push_back(tmp);
+  //     if( theta1 > angle1 + M_PI ) { 
+  //       tmp.y() -= 1;
+  //       updated_blocks_.push_back(tmp);
+  //     }
+  //     if( theta1 > M_PI / 4 + M_PI ) {
+  //       tmp.x() += 1;
+  //       updated_blocks_.push_back(tmp);
+  //     }
+  //     break;
+
+  //   case  y_pos:
+  //     tmp = odom_block_index;
+  //     tmp.y() += 1;
+  //     updated_blocks_.push_back(tmp);
+  //     tmp.y() += 1;
+  //     updated_blocks_.push_back(tmp);
+  //     if( theta1 > angle1 + M_PI / 2 ) { 
+  //       tmp.x() -= 1;
+  //       updated_blocks_.push_back(tmp);
+  //     }
+  //     if( theta1 > M_PI / 4 + M_PI / 2 ) {
+  //       tmp.y() -= 1;
+  //       updated_blocks_.push_back(tmp);
+  //     }
+  //     break;
+
+  //   case  y_neg:
+  //     tmp = odom_block_index;
+  //     tmp.y() -= 1;
+  //     updated_blocks_.push_back(tmp);
+  //     tmp.y() -= 1;
+  //     updated_blocks_.push_back(tmp);
+  //     if( theta1 > angle1 + 3 * M_PI / 2 ) { 
+  //       tmp.x() += 1;
+  //       updated_blocks_.push_back(tmp);
+  //     }
+  //     if( theta1 > M_PI / 4 + 3 * M_PI / 2 ) {
+  //       tmp.y() += 1;
+  //       updated_blocks_.push_back(tmp);
+  //     }
+  //     break;
+  // }
+
+  
+}
+
+
+void FrontierMap::setOdom( Eigen::Vector3f &odom_pos, float &odom_yaw )
+{
+  if( odom_pos.z() <= 0.5 ) {
+    ROS_WARN( "Insufficient current altitude of drone");
+    return;
+  }
+
+  // Define a threshold for significant change
+  float pos_threshold = 0.1f; 
+  float yaw_threshold = 0.0174533; // Yaw threshold in radians (~1 degree)
+
+  // Check if there is a significant difference in position or yaw
+  bool pos_diff = (odom_pos_ - odom_pos).norm() > pos_threshold;
+  bool yaw_diff = std::abs(odom_yaw_ - odom_yaw) > yaw_threshold;
+
+  if (pos_diff || yaw_diff) {
+    odom_pos_ = odom_pos;
+    odom_yaw_ = odom_yaw;
+    updateFrontierMap();
   }
 }
 
@@ -206,47 +360,54 @@ void FrontierMap::searchFrontiers()
       int lin_idx = global_to_linearidx_in_List(element, boundaries_.box_min_);
       frontier_flag_.erase(lin_idx);
     }
-    edited_block_idx_.insert( iter->main_block_index );
+    for (const auto& block_id : iter->block_idx_) {
+      edited_block_idx_.insert( block_id );
+    }
     iter = frontiers.erase(iter);
   };
 
   removed_ids_.clear();
   int rmv_idx = 0;
 
-  for (auto iter = frontiers_.begin(); iter != frontiers_.end();) 
-  {
-    if( isFrontierChanged(*iter) ) 
-    {
-      resetFlag(iter, frontiers_);
-      removed_ids_.push_back(rmv_idx);
-    } else {
-      ++rmv_idx;
-      ++iter;
-    }
-  }
+  // for (auto iter = frontiers_.begin(); iter != frontiers_.end();) 
+  // {
+  //   if( isFrontierChanged(*iter) ) 
+  //   {
+  //     resetFlag(iter, frontiers_);
+  //     removed_ids_.push_back(rmv_idx);
+  //   } else {
+  //     ++rmv_idx;
+  //     ++iter;
+  //   }
+  // }
 
-  for (auto iter = dormant_frontiers_.begin(); iter != dormant_frontiers_.end();) 
-  {
-    if( isFrontierChanged(*iter) ) 
-      { resetFlag(iter, dormant_frontiers_); } 
-    else 
-      { ++iter; }
-  }
+  // for (auto iter = dormant_frontiers_.begin(); iter != dormant_frontiers_.end();) 
+  // {
+  //   if( isFrontierChanged(*iter) ) 
+  //     { resetFlag(iter, dormant_frontiers_); } 
+  //   else 
+  //     { ++iter; }
+  // }
 
+  voxblox::BlockIndexList final_list;
   // 加上Frontier状态有改变的BlockIndex
-  for (const auto& block_idx : edited_block_idx_) {
-    updated_blocks_.push_back(block_idx);
+  for (const auto& block_idx : updated_blocks_) {
+    if( block_idx.z() == 0 ) 
+      { final_list.push_back(block_idx); }
   }
-  size_t size = updated_blocks_.size();
+  for (const auto& block_idx : edited_block_idx_) {
+    if( block_idx.z() == 0 ) 
+      { final_list.push_back(block_idx); }
+  }
+  size_t size = final_list.size();
   if( size <= 0 ) return;
 
   edited_block_idx_.clear();
   searched_.clear();
-  std::cout << "updated + edited block size: " << updated_blocks_.size() << std::endl;
-
+  std::cout << "updated + edited block size: " << final_list.size() << std::endl;
 
   // Search new frontier within box slightly inflated from updated box
-  for (const BlockIndex& block_index : updated_blocks_) {
+  for (const BlockIndex& block_index : final_list) {
 
     voxblox::Block<EsdfVoxel>::Ptr esdf_block = esdf_layer_->getBlockPtrByIndex(block_index);
     if (!esdf_block) {
@@ -526,6 +687,10 @@ void FrontierMap::getFullCostMatrix( const Eigen::Vector3f& cur_pos, const Eigen
 }
 
 
+/// @brief 循环遍历frontier_ids，将每个frontier的路径段添加到最终路径中
+/// @param pos 
+/// @param frontier_ids 
+/// @param path 
 void FrontierMap::getPathForTour( const Eigen::Vector3f& pos, const std::vector<int>& frontier_ids, std::vector<Eigen::Vector3f>& path ) 
 {
   // Make an frontier_indexer to access the frontier list easier
@@ -549,6 +714,21 @@ void FrontierMap::getPathForTour( const Eigen::Vector3f& pos, const std::vector<
   }
 }
 
+
+void FrontierMap::visualizeFrontiers()
+{
+  if( visu_flag_ ) {
+    std::vector<std::vector<Eigen::Vector3f>> clusters; 
+    getFrontiers( clusters );
+    std::cout<< clusters.size() << endl;
+    if( !clusters.empty() ) {
+      for (int i = 0; i < clusters.size(); ++i ) {
+        ftr_visu_->drawCubes( clusters[i], 0.1, float(i) / clusters.size(), 0.4, "frontier", i );
+      }
+    }
+    visu_flag_ = false;
+  }
+}
 
 
 bool FrontierMap::whitelist( const Eigen::Vector3i &idx )
@@ -779,7 +959,15 @@ void FrontierMap::computeFrontierInfo( Frontier& ftr )
   GlobalIndex global_voxel_idx = voxblox_map_->getGridIndexFromPoint( ftr.average_ );
   BlockIndex block_index = voxblox_map_->getBlockIndexFromGlobalVoxelIndex( global_voxel_idx );
 
-  ftr.main_block_index = block_index;
+  ftr.block_idx_.push_back(block_index);
+
+  BlockIndex front_block_index = voxblox_map_->getBlockIndexFromGlobalVoxelIndex( ftr.idx_.front() );
+  BlockIndex back_block_index = voxblox_map_->getBlockIndexFromGlobalVoxelIndex( ftr.idx_.back() );
+  if( front_block_index != ftr.block_idx_.back() ) 
+    ftr.block_idx_.push_back(front_block_index);
+
+  if( back_block_index != front_block_index && back_block_index != block_index ) 
+    ftr.block_idx_.push_back(back_block_index);
 
   // Compute downsampled cluster
   downsample( ftr.cells_, ftr.filtered_cells_ );
@@ -871,6 +1059,83 @@ void FrontierMap::wrapYaw(float& yaw) {
     yaw += 2 * M_PI;
   while (yaw > M_PI)
     yaw -= 2 * M_PI;
+}
+
+
+bool FrontierMap::ifBlockinFOV( Eigen::Vector3f &odom_pos, float &odom_yaw, voxblox::BlockIndex &goal_idx )
+{
+  float length = voxel_size_ * voxels_per_side_;
+  voxblox::Block<EsdfVoxel>::Ptr esdf_block = esdf_layer_->getBlockPtrByIndex(goal_idx);
+  
+  if( !esdf_block ) 
+    return false;
+  
+  // voxblox::Point goal_origin = esdf_block->origin();
+  // voxblox::Point larger_x = goal_origin;
+  // voxblox::Point larger_y = goal_origin;
+  // voxblox::Point larger_xy = goal_origin;
+  voxblox::Point goal_origin = esdf_block->origin();
+  voxblox::Point corners[4] = {
+    goal_origin,
+    goal_origin + voxblox::Point(length, 0, 0),
+    goal_origin + voxblox::Point(0, length, 0),
+    goal_origin + voxblox::Point(length, length, 0)
+  };
+  // larger_x.x() += length;
+  // larger_y.y() += length;
+  // larger_xy.x() += length;
+  // larger_xy.y() += length;
+  float theta1 = odom_yaw + half_theta_;
+  float theta2 = odom_yaw - half_theta_;
+  normalizeYaw( theta1 );
+  normalizeYaw( theta2 );
+
+  // if( ifPointinFOV( odom_pos, theta1, theta2, goal_origin ) ||
+  //     ifPointinFOV( odom_pos, theta1, theta2, goal_origin ) ||
+  //     ifPointinFOV( odom_pos, theta1, theta2, goal_origin ) ||
+  //     ifPointinFOV( odom_pos, theta1, theta2, goal_origin ) )
+  //   { return true; }
+
+  for (const auto& corner : corners) {
+    if (ifPointinFOV(odom_pos, theta1, theta2, corner)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+bool FrontierMap::ifPointinFOV( Eigen::Vector3f &odom_pos, float &start_theta, float &end_theta, const voxblox::Point &point )
+{
+  // if( (point - odom_pos).norm() > 3.0f )
+  //   return false;
+
+  // 只计算 x 和 y 方向上的距离
+  float distance_xy = std::sqrt(std::pow(point.x() - odom_pos.x(), 2) + std::pow(point.y() - odom_pos.y(), 2));
+  if (distance_xy > 3.0f) {
+    return false;
+  }
+  
+  float point_angle = std::atan2(point.y() - odom_pos.y(), point.x() - odom_pos.x());
+  normalizeYaw( point_angle );
+
+  // 确保扇形角度范围是顺时针方向
+  if (start_theta > end_theta) {
+    return point_angle <= start_theta && point_angle >= end_theta;
+  } else {
+    return point_angle <= start_theta || point_angle >= end_theta;
+  }
+}
+
+
+void FrontierMap::filterBlocksWithZEqualToZero( voxblox::BlockIndexList &updated_blocks )
+{
+  voxblox::BlockIndexList filtered_blocks;
+  std::copy_if(updated_blocks_.begin(), updated_blocks_.end(), std::back_inserter(filtered_blocks), [](const voxblox::BlockIndex& index) {
+      return index.z() == 0;
+  });
+  updated_blocks_ = filtered_blocks; 
 }
 
 

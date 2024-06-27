@@ -7,6 +7,7 @@
 #include <nav_msgs/Path.h>
 #include <std_msgs/Empty.h>
 #include <nav_msgs/Odometry.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/Marker.h>
 
 #include <algorithm>
@@ -14,15 +15,9 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include <thread>
+// #include <thread>
 
 #include <scoutair_planner/exploration_manager.h>
-
-// using Eigen::Vector3d;
-// using std::vector;
-// using std::shared_ptr;
-// using std::unique_ptr;
-// using std::string;
 
 namespace scoutair_planner {
 
@@ -32,7 +27,7 @@ namespace scoutair_planner {
 // struct FSMParam;
 // struct FSMData;
 
-enum EXPL_STATE { INIT, WAIT_TRIGGER, PLAN_TRAJ, PUB_TRAJ, EXEC_TRAJ, FINISH };
+enum EXPL_STATE { INIT, ROTATE, WAIT_TRIGGER, PLAN_TRAJ, PUB_TRAJ, EXEC_TRAJ, FINISH };
 
 class ExplorationFSM 
 {
@@ -51,12 +46,9 @@ public:
 private:
   /* planning utils */
   std::shared_ptr<ExplorationManager> exploration_manager_;
-  // std::shared_ptr<FastPlannerManager> planner_manager_;
-  // std::shared_ptr<FastExplorationManager> expl_manager_;
-  // std::shared_ptr<PlanningVisualization> visualization_;
-
-  // std::shared_ptr<FSMParam> fp_;
-  // std::shared_ptr<FSMData> fd_;
+  
+  // Visulization
+  std::shared_ptr<FtrVisulization> fsm_visu_;
   
   // ROS Parameters
   ros::NodeHandle nh_;
@@ -70,7 +62,7 @@ private:
   ros::NodeHandle node_;
   ros::Timer exec_timer_, safety_timer_, vis_timer_, frontier_timer_;
   ros::Subscriber trigger_sub_, odom_sub_;
-  ros::Publisher replan_pub_, new_pub_, bspline_pub_;
+  ros::Publisher controller_pub_;
 
   /* helper functions */
   int callExplorationPlanner();
@@ -78,23 +70,24 @@ private:
 
   /* ROS functions */
   void FSMCallback(const ros::TimerEvent& e);
-  void safetyCallback(const ros::TimerEvent& e);
   void frontierCallback(const ros::TimerEvent& e);
-  void triggerCallback(const nav_msgs::PathConstPtr& msg);
+  void triggerCallback( const geometry_msgs::PoseStamped::ConstPtr& msg );
   void odometryCallback(const nav_msgs::OdometryConstPtr& msg);
   void visualize();
-  // void clearVisMarker();
+
+  void droneRotate();
 
   // FSM data
   bool trigger_, have_odom_, static_state_;
-  vector<string> state_str_;
+  std::vector<std::string> state_str_;
 
-  Eigen::Vector3d odom_pos_, odom_vel_;  // odometry state
-  Eigen::Quaterniond odom_orient_;
-  double odom_yaw_;
+  Eigen::Vector3f odom_pos_, odom_vel_;  // odometry state
+  Eigen::Quaternionf odom_orient_;
+  float odom_yaw_;
+  Eigen::Vector3f start_pt_, start_vel_, start_acc_;
+  Eigen::Vector3f start_yaw_;  // start state
 
-  Eigen::Vector3d start_pt_, start_vel_, start_acc_, start_yaw_;  // start state
-  vector<Eigen::Vector3d> start_poss;
+  std::vector<Eigen::Vector3f> start_poss;
   // bspline::Bspline newest_traj_;
 
   double replan_thresh1_;

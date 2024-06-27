@@ -20,7 +20,9 @@ public:
 
   void publishBlock( const std::vector<voxblox::BlockIndex>& block_index_list ); 
 
-  void drawFOV( const std::vector<Eigen::Vector3f>& list1, const std::vector<Eigen::Vector3f>& list2 );               
+  void drawFOV( const std::vector<Eigen::Vector3f>& list1, const std::vector<Eigen::Vector3f>& list2 );   
+
+  void publishGlobalTour( const std::vector<Eigen::Vector3f> &globaltour );            
 
 private:
   void fillBasicInfo( visualization_msgs::Marker& mk, const Eigen::Vector3f& scale,
@@ -41,6 +43,7 @@ private:
   ros::Publisher frontier_pub_;
   ros::Publisher uccu_pub_, free_pub_, unkno_pub_;
   ros::Publisher fov_pub_;
+  ros::Publisher gt_pub_;
 
   std::shared_ptr<VoxbloxMap> voxblox_map_;
 };

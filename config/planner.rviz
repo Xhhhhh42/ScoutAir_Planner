@@ -5,7 +5,6 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /Unknown1
       Splitter Ratio: 0.5
     Tree Height: 403
   - Class: rviz/Selection
@@ -29,7 +28,7 @@ Panels:
   - Class: mav_planning_rviz/PlanningPanel
     Name: PlanningPanel
     namespace: firefly
-    odometry_topic: ""
+    odometry_topic: ground_truth/odometry
     planner_name: ""
 Preferences:
   PromptSaveOnExit: true
@@ -87,6 +86,46 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        camera_depth_optical_center_link:
+          Value: true
+        firefly/base_link:
+          Value: true
+        firefly/base_link_inertia:
+          Value: true
+        firefly/current_reference:
+          Value: true
+        firefly/odometry_sensor1:
+          Value: true
+        firefly/rotor_0:
+          Value: true
+        firefly/rotor_1:
+          Value: true
+        firefly/rotor_2:
+          Value: true
+        firefly/rotor_3:
+          Value: true
+        firefly/rotor_4:
+          Value: true
+        firefly/rotor_5:
+          Value: true
+        firefly/vi_sensor/base_link:
+          Value: true
+        firefly/vi_sensor/camera_depth_link:
+          Value: true
+        firefly/vi_sensor/camera_depth_optical_center_link:
+          Value: true
+        firefly/vi_sensor/camera_left_link:
+          Value: true
+        firefly/vi_sensor/camera_left_optical_link:
+          Value: true
+        firefly/vi_sensor/camera_right_link:
+          Value: true
+        firefly/vi_sensor/vi_sensor_link:
+          Value: true
+        odom:
+          Value: true
+        world:
+          Value: true
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -94,7 +133,39 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        world:
+          firefly/base_link:
+            firefly/base_link_inertia:
+              {}
+            firefly/rotor_0:
+              {}
+            firefly/rotor_1:
+              {}
+            firefly/rotor_2:
+              {}
+            firefly/rotor_3:
+              {}
+            firefly/rotor_4:
+              {}
+            firefly/rotor_5:
+              {}
+            firefly/vi_sensor/vi_sensor_link:
+              firefly/vi_sensor/camera_depth_link:
+                firefly/vi_sensor/camera_depth_optical_center_link:
+                  camera_depth_optical_center_link:
+                    {}
+              firefly/vi_sensor/camera_left_link:
+                firefly/vi_sensor/camera_left_optical_link:
+                  {}
+              firefly/vi_sensor/camera_right_link:
+                {}
+          firefly/odometry_sensor1:
+            {}
+          firefly/vi_sensor/base_link:
+            {}
+          odom:
+            firefly/current_reference:
+              {}
       Update Interval: 0
       Value: true
     - Class: rviz/Marker
@@ -102,7 +173,7 @@ Visualization Manager:
       Marker Topic: /planning_vis/frontier
       Name: Marker
       Namespaces:
-        frontier: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -125,6 +196,14 @@ Visualization Manager:
       Enabled: true
       Marker Topic: /planning_vis/kUnknown
       Name: Unknown
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /planning_vis/global_tour
+      Name: GlobalTour
       Namespaces:
         {}
       Queue Size: 100
@@ -157,7 +236,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 15.358177185058594
+      Distance: 10.466167449951172
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -165,17 +244,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -1.1207531690597534
-        Y: 0.5764394998550415
-        Z: 0.20326082408428192
+        X: 0.2103908807039261
+        Y: -0.41655394434928894
+        Z: 0.6317469477653503
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9603976011276245
+      Pitch: 0.6853978633880615
       Target Frame: <Fixed Frame>
-      Yaw: 0.600394070148468
+      Yaw: 1.4353933334350586
     Saved: ~
 Window Geometry:
   Displays:

@@ -18,6 +18,7 @@ FtrVisulization::FtrVisulization( const ros::NodeHandle& nh, const ros::NodeHand
   unkno_pub_ = nh_private_.advertise<visualization_msgs::Marker>("/planning_vis/kUnknown", 10000);
 
   fov_pub_ = nh_private_.advertise<visualization_msgs::Marker>("/planning_vis/position_cmd_vis", 10);
+  gt_pub_ = nh_private_.advertise<visualization_msgs::Marker>("/planning_vis/global_tour", 10);
 }
 
 
@@ -302,6 +303,48 @@ void FtrVisulization::drawFOV( const std::vector<Eigen::Vector3f>& list1, const 
   }
   mk.action = visualization_msgs::Marker::ADD;
   fov_pub_.publish(mk);
+}
+
+
+void FtrVisulization::publishGlobalTour( const std::vector<Eigen::Vector3f> &globaltour )
+{
+  visualization_msgs::Marker mk;
+  mk.header.frame_id = "world";
+  mk.header.stamp = ros::Time::now();
+  mk.id = 0;
+  mk.ns = "global_tour";
+  mk.type = visualization_msgs::Marker::LINE_LIST;
+  mk.pose.orientation.x = 0.0;
+  mk.pose.orientation.y = 0.0;
+  mk.pose.orientation.z = 0.0;
+  mk.pose.orientation.w = 1.0;
+  mk.color.r = 1.0;
+  mk.color.g = 0.0;
+  mk.color.b = 0.0;
+  mk.color.a = 1.0;
+  mk.scale.x = 0.04;
+  mk.scale.y = 0.04;
+  mk.scale.z = 0.04;
+
+  // Clean old marker
+  mk.action = visualization_msgs::Marker::DELETE;
+  gt_pub_.publish(mk);
+
+  // Pub new marker
+  geometry_msgs::Point pt;
+  for (int i = 0; i < int(globaltour.size()-1); ++i) {
+    pt.x = globaltour[i](0);
+    pt.y = globaltour[i](1);
+    pt.z = globaltour[i](2);
+    mk.points.push_back(pt);
+
+    pt.x = globaltour[i+1](0);
+    pt.y = globaltour[i+1](1);
+    pt.z = globaltour[i+1](2);
+    mk.points.push_back(pt);
+  }
+  mk.action = visualization_msgs::Marker::ADD;
+  gt_pub_.publish(mk);
 }
 
 

@@ -40,7 +40,9 @@ struct Viewpoint
 struct Frontier {
   std::vector<voxblox::GlobalIndex> idx_;
   // std::unordered_set<voxblox::BlockIndex> block_indices_;
-  voxblox::BlockIndex main_block_index;
+  std::vector<voxblox::BlockIndex> block_idx_;
+  // voxblox::BlockIndex main_block_index_;
+  // voxblox::BlockIndex second_block_index_;
 
   // Complete voxels belonging to the cluster
   std::vector<voxblox::Point> cells_;
@@ -58,6 +60,13 @@ struct Frontier {
   // Path and cost from this cluster to other clusters
   std::list<std::vector<Eigen::Vector3f>> paths_;
   std::list<float> costs_;
+
+  // // 默认构造函数
+  // Frontier()
+  //   : main_block_index_(voxblox::BlockIndex::Zero()),
+  //     second_block_index_(voxblox::BlockIndex::Zero()),
+  //     average_(Eigen::Vector3f::Zero()),
+  //     id_(0) {}
 };
 
 
@@ -86,6 +95,25 @@ struct ExplorationParam {
   double relax_time_;
 };
 
+struct ExplorationData {
+  std::vector<std::vector<Eigen::Vector3f>> frontiers_;
+  std::vector<std::vector<Eigen::Vector3f>> dead_frontiers_;
+  // std::vector<pair<Eigen::Vector3f, Eigen::Vector3f>> frontier_boxes_;
+  std::vector<Eigen::Vector3f> points_;
+  std::vector<Eigen::Vector3f> averages_;
+  std::vector<Eigen::Vector3f> views_;
+  std::vector<float> yaws_;
+  std::vector<Eigen::Vector3f> global_tour_;
+
+  std::vector<int> refined_ids_;
+  std::vector<std::vector<Eigen::Vector3f>> n_points_;
+  std::vector<Eigen::Vector3f> unrefined_points_;
+  std::vector<Eigen::Vector3f> refined_points_;
+  std::vector<Eigen::Vector3f> refined_views_;  // points + dir(yaw)
+  std::vector<Eigen::Vector3f> refined_views1_, refined_views2_;
+  std::vector<Eigen::Vector3f> refined_tour_;
+};
+
 
 template <typename T>
 struct matrix_hash : std::unary_function<T, size_t> {
@@ -98,6 +126,18 @@ struct matrix_hash : std::unary_function<T, size_t> {
     return seed;
   }
 };
+
+
+inline void normalizeYaw(float &odom_yaw) 
+{
+  // 保证odom_yaw在(0, 2 * pi)范围内
+  while (odom_yaw < 0) {
+      odom_yaw += 2 * M_PI;
+  }
+  while (odom_yaw >= 2 * M_PI) {
+      odom_yaw -= 2 * M_PI;
+  }
+}
 
 } // namespace scoutair_planner 
 
