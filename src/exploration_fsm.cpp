@@ -32,6 +32,7 @@ void ExplorationFSM::init() {
   odom_sub_ = nh_private_.subscribe("odometry", 1, &ExplorationFSM::odometryCallback, this);
 
   controller_pub_ = nh_private_.advertise<geometry_msgs::PoseStamped>( "command/pose", 1, false );
+  waypoint_pub_ = nh_private_.advertise<geometry_msgs::PoseStamped>( "waypoint", 1, false );
 
   ready_to_fly_ = false;
 
@@ -64,15 +65,13 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
     case ROTATE: {
       ROS_WARN_THROTTLE(2.0, "Drone rotates.");
       static int time = 0;
-      if( time < 3 ) {
-        ros::Duration(4.0).sleep();
+      if( time < 4 ) {
         droneRotate();
-        // exploration_manager_->frontiermap_->initFrontierMap();
+        ros::Duration(4.0).sleep();
         // std::cout<< "drone rotates "<< std::endl; 
         time++;
         return;
       }
-      ros::Duration(5.0).sleep();
       exploration_manager_->frontiermap_->initFrontierMap();
       // Go to wait trigger when first update frontier map
       transitState(WAIT_TRIGGER, "FSM");
@@ -95,20 +94,17 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
       start_pt_ = odom_pos_;
       start_yaw_(0) = odom_yaw_;
       start_yaw_(1) = start_yaw_(2) = 0.0;
-      // start_yaw_ = odom_yaw_;
       start_vel_ = odom_vel_;
       start_acc_.setZero();
 
-      // Inform traj_server the replanning
-      // replan_pub_.publish(std_msgs::Empty());
       int res = callExplorationPlanner();
       if (res == SUCCEED) {
-        transitState(PUB_TRAJ, "FSM");
+        transitState(EXEC_TRAJ, "FSM");
       } else if (res == NO_FRONTIER) {
         transitState(FINISH, "FSM");
-      } else if (res == FAIL) {
-        // Still in PLAN_TRAJ state, keep replanning
-        ROS_WARN("plan fail");
+      // } else if (res == FAIL) {
+      //   // Still in PLAN_TRAJ state, keep replanning
+      //   ROS_WARN("plan fail");
       }
       break;
     }
@@ -121,6 +117,22 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
     }
 
     case EXEC_TRAJ: {
+      if((odom_pos_ - next_pos_).norm() < 0.4f)
+      {
+        ros::Duration(0.3).sleep();
+        transitState(PLAN_TRAJ, "FSM");
+      }
+        
+      if((last_odom_pos_ - odom_pos_).norm() < 0.01f){
+        static int time = 0;
+        if( time++ > 5 ) {
+          transitState(PLAN_TRAJ, "FSM");
+        }
+        break;
+      }
+
+      last_odom_pos_ = odom_pos_;
+        
       // LocalTrajData* info = &planner_manager_->local_data_;
       // double t_cur = (ros::Time::now() - info->start_time_).toSec();
 
@@ -151,9 +163,26 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
 int ExplorationFSM::callExplorationPlanner() 
 {
   // ros::Time time_r = ros::Time::now() + ros::Duration(replan_time_);
+  int res = exploration_manager_->planExploreMotion( start_pt_, start_vel_, start_acc_, start_yaw_, next_pos_, next_yaw_ );
+  // pub next point
+  geometry_msgs::PoseStamped pose;
+  pose.header.frame_id = "world";
 
-  int res = exploration_manager_->planExploreMotion( start_pt_, start_vel_, start_acc_, start_yaw_ );
-  classic_ = false;
+  pose.pose.position.x = next_pos_.x(); 
+  pose.pose.position.y = next_pos_.y();
+  pose.pose.position.z = next_pos_.z();
+
+  Eigen::AngleAxisf yawAngle(next_yaw_, Eigen::Vector3f::UnitZ());
+  Eigen::Quaternionf q_yaw(yawAngle);
+  pose.pose.orientation.x = q_yaw.x();
+  pose.pose.orientation.y = q_yaw.y();
+  pose.pose.orientation.z = q_yaw.z();
+  pose.pose.orientation.w = q_yaw.w();
+
+  std::cout << "Next view: " << next_pos_.transpose() << ", " << next_yaw_ << std::endl;
+
+  waypoint_pub_.publish(pose);
+  waypoint_pub_.publish(pose);
 
   // if (res == SUCCEED) {
   //   auto info = &planner_manager_->local_data_;
@@ -206,6 +235,21 @@ void ExplorationFSM::triggerCallback( const geometry_msgs::PoseStamped::ConstPtr
   if (msg->pose.position.z < -0.1) return;
   if (state_ != WAIT_TRIGGER) return;
   trigger_ = true;
+
+  geometry_msgs::PoseStamped pose;
+  pose.header.frame_id = "world";
+  pose.pose.position.x = 1.0; 
+  pose.pose.position.y = odom_pos_.y();
+  pose.pose.position.z = 1.2;
+  // Set the new orientation
+  pose.pose.orientation.x = 0;
+  pose.pose.orientation.y = 0;
+  pose.pose.orientation.z = 0;
+  pose.pose.orientation.w = 1;
+
+  controller_pub_.publish(pose);
+  ros::Duration(2.0).sleep();
+
   cout << "Triggered! Start Exploration." << endl;
   transitState(PLAN_TRAJ, "triggerCallback");
 }
@@ -238,41 +282,30 @@ void ExplorationFSM::transitState( EXPL_STATE new_state, string pos_call )
 {
   int pre_s = int(state_);
   state_ = new_state;
-  cout << "[" + pos_call + "]: from " + state_str_[pre_s] + " to " + state_str_[int(new_state)]
-       << endl;
+  cout << "[" + pos_call + "]: from " + state_str_[pre_s] + " to " + state_str_[int(new_state)] << endl;
 }
 
 
 void ExplorationFSM::droneRotate()
 {
-  // trajectory_msgs::MultiDOFJointTrajectory trajectory_msg;
-  // trajectory_msg.header.stamp = ros::Time::now();
-
-  // // Default desired position and yaw.
-  // Eigen::Vector3d desired_position(0.0, 0.0, 1.0);
-  // double desired_yaw = 0.0;
-
-  // // Overwrite defaults if set as node parameters.
-  // nh_private.param("x", desired_position.x(), desired_position.x());
-  // nh_private.param("y", desired_position.y(), desired_position.y());
-  // nh_private.param("z", desired_position.z(), desired_position.z());
-  // nh_private.param("yaw", desired_yaw, desired_yaw);
-
-  // mav_msgs::msgMultiDofJointTrajectoryFromPositionYaw(
-  //     desired_position, desired_yaw, &trajectory_msg);
-
-  // ROS_INFO("Publishing waypoint on namespace %s: [%f, %f, %f].",
-  //          nh.getNamespace().c_str(), desired_position.x(),
-  //          desired_position.y(), desired_position.z());
-  // trajectory_pub.publish(trajectory_msg);
-
-
+  static bool init_move = false;
   geometry_msgs::PoseStamped pose;
   pose.header.frame_id = "world";
-  // pose.pose.position.x = odom_pos_.x() + 0.5; 
-  pose.pose.position.x = 0.5; 
+  pose.pose.position.x = 1.0; 
   pose.pose.position.y = odom_pos_.y();
-  pose.pose.position.z = 1.5;
+  pose.pose.position.z = 1.4;
+
+  if( !init_move ) {
+    // Set the new orientation
+    pose.pose.orientation.x = 0;
+    pose.pose.orientation.y = 0;
+    pose.pose.orientation.z = 0;
+    pose.pose.orientation.w = 1;
+
+    controller_pub_.publish(pose);
+    init_move = true;
+    return;
+  }
 
   // Rotate the pose by 120 degrees around the Z-axis
   static Eigen::Quaternionf q_last = odom_orient_;

@@ -14,12 +14,6 @@ using std::unique_ptr;
 using std::vector;
 
 namespace scoutair_planner {
-// class EDTEnvironment;
-// class SDFMap;
-// class FastPlannerManager;
-// class FrontierFinder;
-// struct ExplorationParam;
-// struct ExplorationData;
 
 enum EXPL_RESULT { NO_FRONTIER, FAIL, SUCCEED };
 
@@ -33,8 +27,8 @@ public:
 
   void initialize();
 
-  int planExploreMotion(const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const Eigen::Vector3f& acc,
-                        const Eigen::Vector3f& yaw);
+  int planExploreMotion( const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const Eigen::Vector3f& acc,
+                         const Eigen::Vector3f& yaw, Eigen::Vector3f &next_pos, float &next_yaw );
 
   std::shared_ptr<FrontierMap> frontiermap_;
 

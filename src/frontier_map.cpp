@@ -121,13 +121,13 @@ void FrontierMap::frontierCallback( const ros::TimerEvent& e )
   //     return; // 如果未初始化，提前返回
   // }
 
-  ros::Time t4 = ros::Time::now();
-  searchFrontiers();
-  ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
+  // ros::Time t4 = ros::Time::now();
+  // searchFrontiers();
+  // ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
 
-  computeFrontiersToVisit();
-  updateFrontierCostMatrix();
-  visu_flag_ = true;
+  // computeFrontiersToVisit();
+  // updateFrontierCostMatrix();
+  // visu_flag_ = true;
 }
 
 
@@ -162,17 +162,17 @@ bool FrontierMap::initFrontierMap()
 
   // filterBlocksWithZEqualToZero(updated_blocks_);
 
-  ros::Time t4 = ros::Time::now();
+  ros::Time t = ros::Time::now();
   searchFrontiers();
-  ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
+  ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t).toSec());
 
-  ros::Time t5 = ros::Time::now();
+  t = ros::Time::now();
   computeFrontiersToVisit();
-  ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t5).toSec());
+  ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t).toSec());
   visualizeFrontiers();
-  ros::Time t6 = ros::Time::now();
+  t = ros::Time::now();
   updateFrontierCostMatrix();
-  ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t6).toSec());
+  ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t).toSec());
 
   ROS_WARN_ONCE( "Frontier Map inited from ESDF map... ");
   return true;
@@ -187,24 +187,24 @@ void FrontierMap::updateFrontierMap()
   //   return; // 如果未初始化，提前返回
   // }
   
-  ros::Time t3 = ros::Time::now();
+  // ros::Time t3 = ros::Time::now();
   findScanZone( odom_pos_, odom_yaw_, updated_blocks_ );
-  ROS_WARN( "current time: %lf", ros::Time::now().toSec());
-  ROS_WARN( "findZone: %lf", (ros::Time::now() - t3).toSec());
+  // ROS_WARN( "current time: %lf", ros::Time::now().toSec());
+  // ROS_WARN( "findZone: %lf", (ros::Time::now() - t3).toSec());
 
   checkFrontiers();
 
-  ros::Time t4 = ros::Time::now();
+  // ros::Time t4 = ros::Time::now();
   searchFrontiers();
-  ROS_WARN( "current time: %lf", ros::Time::now().toSec());
-  ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
+  // ROS_WARN( "current time: %lf", ros::Time::now().toSec());
+  // ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
 
-  ros::Time t5 = ros::Time::now();
+  // ros::Time t5 = ros::Time::now();
   computeFrontiersToVisit();
-  ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t5).toSec());
-  ros::Time t6 = ros::Time::now();
+  // ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t5).toSec());
+  // ros::Time t6 = ros::Time::now();
   updateFrontierCostMatrix();
-  ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t6).toSec());
+  // ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t6).toSec());
 }
 
 
@@ -312,15 +312,13 @@ void FrontierMap::findScanZone( Eigen::Vector3f &odom_pos, float odom_yaw, voxbl
   //       updated_blocks_.push_back(tmp);
   //     }
   //     break;
-  // }
-
-  
+  // } 
 }
 
 
 void FrontierMap::setOdom( Eigen::Vector3f &odom_pos, float &odom_yaw )
 {
-  if( odom_pos.z() <= 0.8 ) {
+  if( odom_pos.z() <= 0.7 ) {
     ROS_WARN( "Insufficient current altitude of drone");
     return;
   }
@@ -344,18 +342,18 @@ void FrontierMap::setOdom( Eigen::Vector3f &odom_pos, float &odom_yaw )
   //   std::cout << "current pos: " << odom_pos_ << std::endl;
   //   std::cout << "new pos: " << odom_pos << std::endl;
   // }
-  if( yaw_diff ) {
-    ROS_WARN( "Rotation detected");
-    std::cout << "current yaw: " << odom_yaw_ << std::endl;
-    std::cout << "new yaw: " << odom_yaw << std::endl;
-  }
+  // if( yaw_diff ) {
+  //   ROS_WARN( "Rotation detected");
+  //   std::cout << "current yaw: " << odom_yaw_ << std::endl;
+  //   std::cout << "new yaw: " << odom_yaw << std::endl;
+  // }
 
   if (pos_diff || yaw_diff) {
     odom_pos_ = odom_pos;
     odom_yaw_ = odom_yaw;
-    ROS_WARN( "updateFrontierMap start: %lf", ros::Time::now().toSec());
+    // ROS_WARN( "updateFrontierMap start: %lf", ros::Time::now().toSec());
     updateFrontierMap();
-    ROS_WARN( "updateFrontierMap end: %lf", ros::Time::now().toSec());
+    // ROS_WARN( "updateFrontierMap end: %lf", ros::Time::now().toSec());
   }
 }
 
@@ -377,6 +375,7 @@ void FrontierMap::checkFrontiers()
     iter = frontiers.erase(iter);
   };
 
+  std::cout << "Before remove: " << frontiers_.size() << std::endl;
   removed_ids_.clear();
   int rmv_idx = 0;
 
@@ -407,6 +406,7 @@ void FrontierMap::checkFrontiers()
     // }
   }
 
+  std::cout << "After remove: " << frontiers_.size() << std::endl;
   for (auto iter = dormant_frontiers_.begin(); iter != dormant_frontiers_.end();) 
   {
     // if( isFrontierChanged(*iter) ) 
@@ -418,7 +418,7 @@ void FrontierMap::checkFrontiers()
       if( std::find(updated_blocks_.begin(), updated_blocks_.end(), block_id) != updated_blocks_.end() ) {
         if( isFrontierChanged(*iter) ) 
           {
-            resetFlag(iter, frontiers_);
+            resetFlag(iter, dormant_frontiers_);
             // removed_ids_.push_back(rmv_idx);
             found = true;
             break;
@@ -429,11 +429,14 @@ void FrontierMap::checkFrontiers()
     // ++rmv_idx;
     ++iter;
   }
+
+  std::cout << "checkFrontiers end: " << frontiers_.size() << std::endl;
 }
 
 
 void FrontierMap::searchFrontiers() 
 {
+  std::cout << "Start search: " << frontiers_.size() << std::endl;
   tmp_frontiers_.clear();
 
   voxblox::BlockIndexList final_list;
@@ -451,6 +454,7 @@ void FrontierMap::searchFrontiers()
   
   searched_.clear();
   std::cout << "updated + edited block size: " << final_list.size() << std::endl;
+  std::cout << "After search3: " << frontiers_.size() << std::endl;
 
   // Search new frontier within box slightly inflated from updated box
   for (const BlockIndex& block_index : final_list) {
@@ -491,16 +495,21 @@ void FrontierMap::searchFrontiers()
     }
   }
 
+  std::cout << "After search2: " << frontiers_.size() << std::endl;
+
   splitLargeFrontiers(tmp_frontiers_);
   visu_flag_ = true;
+
+  std::cout << "After search1: " << frontiers_.size() << std::endl;
 }
 
 
 void FrontierMap::computeFrontiersToVisit() 
 {
-  if( tmp_frontiers_.size() <= 0 ) return;
-
   first_new_ftr_ = frontiers_.end();
+  std::cout << "tmp_frontiers_ size: " << tmp_frontiers_.size() << std::endl;
+  if( tmp_frontiers_.size() <= 0 ) return;
+  
   int new_num = 0;
   // Try find viewpoints for each cluster and categorize them according to viewpoint number
   for (auto& tmp_ftr : tmp_frontiers_) {
@@ -528,7 +537,7 @@ void FrontierMap::computeFrontiersToVisit()
     ft.id_ = idx++;
   }
 
-  cost_update_ = true;
+  // cost_update_ = true;
 }
 
 
@@ -611,14 +620,17 @@ void FrontierMap::getViewpointsInfo( const Eigen::Vector3f& cur_pos, const std::
 
 void FrontierMap::updateFrontierCostMatrix() 
 {
-  if( !cost_update_ ) return;
+  // if( !cost_update_ ) return;
 
-  // std::cout << "cost mat size before remove: " << std::endl;
-  // for (auto ftr : frontiers_)
-  //   std::cout << "(" << ftr.costs_.size() << "," << ftr.paths_.size() << "), ";
-  // std::cout << "" << std::endl;
+  std::cout << "frontiers_ size:" << frontiers_.size() << std::endl;;
+  std::cout << "cost mat size before remove: " << std::endl;
+  for (auto ftr : frontiers_)
+    std::cout << "(" << ftr.costs_.size() << "," << ftr.paths_.size() << "), ";
+  std::cout << "" << std::endl;
 
-  // std::cout << "cost mat size remove: " << std::endl;
+  std::cout << "removed_ids_:" << removed_ids_.size() << std::endl;
+
+  std::cout << "cost mat size remove: " << std::endl;
   if (!removed_ids_.empty()) {
     // Delete path and cost for removed clusters
     for (auto it = frontiers_.begin(); it != first_new_ftr_; ++it) {
@@ -635,20 +647,19 @@ void FrontierMap::updateFrontierCostMatrix()
         cost_iter = it->costs_.erase(cost_iter);
         path_iter = it->paths_.erase(path_iter);
       }
-      // std::cout << "(" << it->costs_.size() << "," << it->paths_.size() << "), ";
+      std::cout << "(" << it->costs_.size() << "," << it->paths_.size() << "), ";
     }
     removed_ids_.clear();
   }
-  // std::cout << "" << std::endl;
+  std::cout << "" << std::endl;
 
   auto updateCost = [](const list<Frontier>::iterator& it1, const list<Frontier>::iterator& it2) {
-    // std::cout << "(" << it1->id_ << "," << it2->id_ << "), ";
+    std::cout << "(" << it1->id_ << "," << it2->id_ << "), ";
     // Search path from old cluster's top viewpoint to new cluster'
     Viewpoint& vui = it1->viewpoints_.front();
     Viewpoint& vuj = it2->viewpoints_.front();
     vector<Vector3f> path_ij;
-    float cost_ij = ViewNode::computeCost(
-        vui.pos_, vuj.pos_, vui.yaw_, vuj.yaw_, Vector3f(0, 0, 0), 0, path_ij);
+    float cost_ij = ViewNode::computeCost( vui.pos_, vuj.pos_, vui.yaw_, vuj.yaw_, Vector3f(0, 0, 0), 0, path_ij );
     // float cost_ij = 1.0;
     // Insert item for both old and new clusters
     it1->costs_.push_back(cost_ij);
@@ -658,7 +669,10 @@ void FrontierMap::updateFrontierCostMatrix()
     it2->paths_.push_back(path_ij);
   };
 
-  // std::cout << "cost mat add: " << std::endl;
+  std::cout << "cost mat add: " << std::endl;
+  if (first_new_ftr_ == frontiers_.end()) {
+    return;
+  }
   // Compute path and cost between old and new clusters
   for (auto it1 = frontiers_.begin(); it1 != first_new_ftr_; ++it1)
     for (auto it2 = first_new_ftr_; it2 != frontiers_.end(); ++it2)
@@ -666,29 +680,22 @@ void FrontierMap::updateFrontierCostMatrix()
 
   // Compute path and cost between new clusters
   for (auto it1 = first_new_ftr_; it1 != frontiers_.end(); ++it1)
-    for (auto it2 = it1; it2 != frontiers_.end(); ++it2) {
+    for (auto it2 = it1; it2 != frontiers_.end(); ++it2) 
+    {
       if (it1 == it2) {
         it1->costs_.push_back(0);
         it1->paths_.push_back({});
       } else
         updateCost(it1, it2);
     }
-  // std::cout << "" << std::endl;
-  // std::cout << "cost mat size final: " << std::endl;
-  // for (auto ftr : frontiers_)
-  //   std::cout << "(" << ftr.costs_.size() << "," << ftr.paths_.size() << "), ";
-  // std::cout << "" << std::endl;
+  std::cout << "" << std::endl;
+  std::cout << "cost mat size final: " << std::endl;
+  for (auto ftr : frontiers_)
+    std::cout << "(" << ftr.costs_.size() << "," << ftr.paths_.size() << "), ";
+  std::cout << "" << std::endl;
 
-  cost_update_ = false;
+  // cost_update_ = false;
 }
-
-
-// void FrontierMap::drawFrontier( const std::vector<std::vector<Eigen::Vector3f>>& frontiers ) 
-// {
-//   for (int i = 0; i < frontiers.size(); ++i) {
-//     drawCubes(frontiers[i], 0.1, getColor(float(i) / frontiers.size(), 0.8), "frontier", i );
-//   }
-// }
 
 
 void FrontierMap::getFullCostMatrix( const Eigen::Vector3f& cur_pos, const Eigen::Vector3f& cur_vel, 
@@ -701,7 +708,7 @@ void FrontierMap::getFullCostMatrix( const Eigen::Vector3f& cur_pos, const Eigen
   // Fill block for clusters
   int i = 1, j = 1;
   for (auto ftr : frontiers_) {
-    j = 1; // 重置列索引
+    
     for (auto cs : ftr.costs_) {
       if (i < mat.rows() && j < mat.cols()) {
         mat(i, j++) = cs;
@@ -712,6 +719,7 @@ void FrontierMap::getFullCostMatrix( const Eigen::Vector3f& cur_pos, const Eigen
       }
     }
     ++i;
+    j = 1; // 重置列索引
   }
 
   // Fill block from current state to clusters
@@ -720,7 +728,7 @@ void FrontierMap::getFullCostMatrix( const Eigen::Vector3f& cur_pos, const Eigen
     mat.col(0).setZero(); // 初始化第一列为零
   }
 
-  j = 1;
+  j = 1;  
   for (auto ftr : frontiers_) {
     if (j >= mat.cols()) {
       std::cerr << "Error: Index out of bounds while filling current state to clusters block." << std::endl;
@@ -766,7 +774,6 @@ void FrontierMap::visualizeFrontiers()
   if( visu_flag_ ) {
     std::vector<std::vector<Eigen::Vector3f>> clusters; 
     getFrontiers( clusters );
-    std::cout<< clusters.size() << endl;
     if( !clusters.empty() ) {
       for (int i = 0; i < clusters.size(); ++i ) {
         ftr_visu_->drawCubes( clusters[i], 0.1, float(i) / clusters.size(), 0.4, "frontier", i );
@@ -1056,7 +1063,8 @@ void FrontierMap::sampleViewpoints( Frontier& frontier, double &candidate_max, d
   // Evaluate sample viewpoints on circles, find ones that cover most cells
   const auto& cells = frontier.filtered_cells_;
   int num_cells = cells.size();
-  const Eigen::Vector3d frontier_avg = frontier.average_.cast<double>();
+  Eigen::Vector3d frontier_avg = frontier.average_.cast<double>();
+  frontier_avg.z() = 1.0;
 
   for (double phi = -M_PI; phi < M_PI; phi += candidate_dphi_) {
     double cos_phi = cos(phi);

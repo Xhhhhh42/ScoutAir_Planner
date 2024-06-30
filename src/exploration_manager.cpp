@@ -95,19 +95,20 @@ void ExplorationManager::initialize()
 
 void ExplorationManager::frontierCallback( const ros::TimerEvent& e )
 {
-  static int delay = 0;
-  if (delay++ < 2) return;
+  // static int delay = 0;
+  // if (delay++ < 2) return;
 
-  frontiermap_->updateFrontierMap();
-  Eigen::Vector3f pos(0,0,1); 
-  Eigen::Vector3f vel(0,0,0);
-  Eigen::Vector3f acc(0,0,0);
-  Eigen::Vector3f yaw(0,0,0);
-  planExploreMotion( pos, vel,acc, yaw );
+  // frontiermap_->updateFrontierMap();
+  // Eigen::Vector3f pos(0,0,1); 
+  // Eigen::Vector3f vel(0,0,0);
+  // Eigen::Vector3f acc(0,0,0);
+  // Eigen::Vector3f yaw(0,0,0);
+  // planExploreMotion( pos, vel,acc, yaw );
 }
 
 
-int ExplorationManager::planExploreMotion( const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const Eigen::Vector3f& acc, const Eigen::Vector3f& yaw ) 
+int ExplorationManager::planExploreMotion( const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const Eigen::Vector3f& acc, 
+                                           const Eigen::Vector3f& yaw, Eigen::Vector3f &next_pos, float &next_yaw ) 
 {
   ros::Time t1 = ros::Time::now();
   // auto t2 = t1;
@@ -120,13 +121,12 @@ int ExplorationManager::planExploreMotion( const Eigen::Vector3f& pos, const Eig
   // views_.clear();
   ed_->global_tour_.clear();
 
-  std::cout << "start pos: " << pos.transpose() << ", vel: " << vel.transpose()
-            << ", acc: " << acc.transpose() << std::endl;
+  std::cout << "start pos: " << pos.transpose() << "\nvel:      " << vel.transpose() << std::endl;
 
   // // Search frontiers and group them into clusters
   // frontiermap_->searchFrontiers();
 
-  double frontier_time = (ros::Time::now() - t1).toSec();
+  // double frontier_time = (ros::Time::now() - t1).toSec();
   t1 = ros::Time::now();
 
   // Find viewpoints (x,y,z,yaw) for all frontier clusters and get visible ones' info
@@ -143,13 +143,9 @@ int ExplorationManager::planExploreMotion( const Eigen::Vector3f& pos, const Eig
         points_[i] + 2.0 * Eigen::Vector3f(cos(yaws_[i]), sin(yaws_[i]), 0));
 
   double view_time = (ros::Time::now() - t1).toSec();
-  ROS_WARN(
-      "Frontier: %ld, t: %lf, viewpoint: %ld, t: %lf", frontiers_.size(), frontier_time,
-      points_.size(), view_time);
+  // ROS_WARN( "Frontier: %ld, t: %lf, viewpoint: %ld, t: %lf", frontiers_.size(), frontier_time, points_.size(), view_time);
 
   // Do global and local tour planning and retrieve the next viewpoint
-  Eigen::Vector3f next_pos;
-  float next_yaw;
   if (points_.size() > 1) {
     // Find the global tour passing through all viewpoints
     // Create TSP and solve by LKH
@@ -225,44 +221,14 @@ int ExplorationManager::planExploreMotion( const Eigen::Vector3f& pos, const Eig
   } else
     ROS_ERROR("Empty destination.");
 
-  std::cout << "Next view: " << next_pos.transpose() << ", " << next_yaw << std::endl;
+  // std::cout << "Next view: " << next_pos.transpose() << ", " << next_yaw << std::endl;
+
   manager_visu_->publishGlobalTour(ed_->global_tour_);
+  // next_pos = ed_->global_tour_[1];
   // manager_visu_->publishGlobalTour(ed_->refined_points_);
 
   return SUCCEED;
 }
-
-// void ExplorationManager::shortenPath(std::vector<Eigen::Vector3f>& path) {
-//   if (path.empty()) {
-//     ROS_ERROR("Empty path to shorten");
-//     return;
-//   }
-//   // Shorten the tour, only critical intermediate points are reserved.
-//   const double dist_thresh = 3.0;
-//   std::vector<Eigen::Vector3f> short_tour = { path.front() };
-//   for (int i = 1; i < path.size() - 1; ++i) {
-//     if ((path[i] - short_tour.back()).norm() > dist_thresh)
-//       short_tour.push_back(path[i]);
-//     else {
-//       // Add waypoints to shorten path only to avoid collision
-//       ViewNode::caster_->input(short_tour.back(), path[i + 1]);
-//       Eigen::Vector3i idx;
-//       while (ViewNode::caster_->nextId(idx) && ros::ok()) {
-//         if (edt_environment_->sdf_map_->getInflateOccupancy(idx) == 1 ||
-//             edt_environment_->sdf_map_->getOccupancy(idx) == SDFMap::UNKNOWN) {
-//           short_tour.push_back(path[i]);
-//           break;
-//         }
-//       }
-//     }
-//   }
-//   if ((path.back() - short_tour.back()).norm() > 1e-3) short_tour.push_back(path.back());
-
-//   // Ensure at least three points in the path
-//   if (short_tour.size() == 2)
-//     short_tour.insert(short_tour.begin() + 1, 0.5 * (short_tour[0] + short_tour[1]));
-//   path = short_tour;
-// }
 
 
 void ExplorationManager::findGlobalTour( const Eigen::Vector3f& cur_pos, const Eigen::Vector3f& cur_vel, 
@@ -276,7 +242,7 @@ void ExplorationManager::findGlobalTour( const Eigen::Vector3f& cur_pos, const E
   frontiermap_->getFullCostMatrix(cur_pos, cur_vel, cur_yaw, cost_mat);
   const int dimension = cost_mat.rows();
 
-  std::cout<<"cost_matrix rows" <<std::endl;
+  // std::cout<<"cost_matrix rows" <<std::endl;
 
   double mat_time = (ros::Time::now() - t1).toSec();
   t1 = ros::Time::now();
@@ -360,8 +326,8 @@ void ExplorationManager::findGlobalTour( const Eigen::Vector3f& cur_pos, const E
   // Get the path of optimal tour from path matrix
   frontiermap_->getPathForTour(cur_pos, indices, ed_->global_tour_);
 
-  double tsp_time = (ros::Time::now() - t1).toSec();
-  ROS_WARN("Cost mat: %lf, TSP: %lf", mat_time, tsp_time);
+  // double tsp_time = (ros::Time::now() - t1).toSec();
+  // ROS_WARN("Cost mat: %lf, TSP: %lf", mat_time, tsp_time);
 }
 
 

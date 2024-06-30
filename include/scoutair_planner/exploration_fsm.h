@@ -49,20 +49,19 @@ private:
   
   // Visulization
   std::shared_ptr<FtrVisulization> fsm_visu_;
-  
-  // ROS Parameters
-  ros::NodeHandle nh_;
-  ros::NodeHandle nh_private_;
 
   EXPL_STATE state_;
 
   bool classic_;
 
   /* ROS utils */
-  ros::NodeHandle node_;
+  ros::NodeHandle nh_;
+  ros::NodeHandle nh_private_;
   ros::Timer exec_timer_, safety_timer_, vis_timer_, frontier_timer_;
   ros::Subscriber trigger_sub_, odom_sub_;
   ros::Publisher controller_pub_;
+  ros::Publisher waypoint_pub_;
+
 
   /* helper functions */
   int callExplorationPlanner();
@@ -81,7 +80,7 @@ private:
   bool trigger_, have_odom_, static_state_;
   std::vector<std::string> state_str_;
 
-  Eigen::Vector3f odom_pos_, odom_vel_;  // odometry state
+  Eigen::Vector3f odom_pos_, last_odom_pos_, odom_vel_;  // odometry state
   Eigen::Quaternionf odom_orient_;
   float odom_yaw_;
   Eigen::Vector3f start_pt_, start_vel_, start_acc_;
@@ -96,6 +95,8 @@ private:
   double replan_time_;  // second
 
   bool ready_to_fly_;
+  Eigen::Vector3f next_pos_;
+  float next_yaw_;
 };
 
 }  // namespace scoutair_planner

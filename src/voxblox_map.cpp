@@ -96,19 +96,18 @@ VoxbloxMap::VoxelStatus VoxbloxMap::checkVoxelStatus( const voxblox::EsdfVoxel* 
 /// @param voxel 
 /// @return 
 VoxbloxMap::VoxelStatus VoxbloxMap::checkVoxelStatus( const voxblox::EsdfVoxel* voxel, 
-                                                        const voxblox::FloatingPoint &esdf_max_distance_m, 
-                                                        const float &distance_thres ) const
+                                                      const voxblox::FloatingPoint &esdf_max_distance_m, 
+                                                      const float &distance_thres ) const
 {
-  // std::cout<<"checkVoxelStatus"<<std::endl;
   if( voxel == nullptr || !voxel->observed || 
-      voxel->distance + 3 * distance_thres >= esdf_max_distance_m || 
-      voxel->distance <= -esdf_max_distance_m )
+      voxel->distance + 2 * distance_thres >= esdf_max_distance_m || 
+      voxel->distance <= -esdf_max_distance_m + 2 * distance_thres )
     { return VoxelStatus::kUnknown; }
 
-  if( voxel->distance >= 2 * distance_thres )
+  if( voxel->distance >= -0.8 * distance_thres )
     { return VoxelStatus::kFree; }
 
-  if (voxel->fixed) 
+  if( voxel->fixed ) 
     { return VoxelStatus::kOccupied; }
 
   return VoxelStatus::kUnknown;
