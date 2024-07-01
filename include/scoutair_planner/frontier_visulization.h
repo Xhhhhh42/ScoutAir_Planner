@@ -17,12 +17,17 @@ public:
 
   void drawCubes( const std::vector<Eigen::Vector3f>& list, const float& scale, const float& color_h, float color_alpha,
                   const std::string& ns, const int& id /* const int& pub_id */ );
+  void drawCubes( const std::vector<Eigen::Vector3f>& list, const float& scale, const Eigen::Vector4f& color, 
+                  const std::string& ns, const int& id );
 
   void publishBlock( const std::vector<voxblox::BlockIndex>& block_index_list ); 
 
   void drawFOV( const std::vector<Eigen::Vector3f>& list1, const std::vector<Eigen::Vector3f>& list2 );   
 
-  void publishGlobalTour( const std::vector<Eigen::Vector3f> &globaltour );            
+  void publishGlobalTour( const std::vector<Eigen::Vector3f> &globaltour ); 
+
+  void deleteCoveredCubes( const std::vector<Eigen::Vector3f>& list, const float& scale, 
+                           const std::string& ns, const int& id /* const int& pub_id */ );           
 
 private:
   void fillBasicInfo( visualization_msgs::Marker& mk, const Eigen::Vector3f& scale,

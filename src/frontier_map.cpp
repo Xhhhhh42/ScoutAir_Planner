@@ -187,24 +187,24 @@ void FrontierMap::updateFrontierMap()
   //   return; // 如果未初始化，提前返回
   // }
   
-  // ros::Time t3 = ros::Time::now();
+  ros::Time time = ros::Time::now();
   findScanZone( odom_pos_, odom_yaw_, updated_blocks_ );
   // ROS_WARN( "current time: %lf", ros::Time::now().toSec());
-  // ROS_WARN( "findZone: %lf", (ros::Time::now() - t3).toSec());
+  ROS_WARN( "findZone: %lf", (ros::Time::now() - time).toSec());
 
   checkFrontiers();
 
-  // ros::Time t4 = ros::Time::now();
+  time = ros::Time::now();
   searchFrontiers();
   // ROS_WARN( "current time: %lf", ros::Time::now().toSec());
-  // ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - t4).toSec());
+  ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - time).toSec());
 
-  // ros::Time t5 = ros::Time::now();
+  time = ros::Time::now();
   computeFrontiersToVisit();
-  // ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - t5).toSec());
-  // ros::Time t6 = ros::Time::now();
+  ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - time).toSec());
+  time = ros::Time::now();
   updateFrontierCostMatrix();
-  // ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - t6).toSec());
+  ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - time).toSec());
 }
 
 
@@ -215,11 +215,11 @@ void FrontierMap::findScanZone( Eigen::Vector3f &odom_pos, float odom_yaw, voxbl
     { odom_block_index_ = odom_block_index; }
   
   updated_blocks.clear();
-  updated_blocks.push_back(odom_block_index_);
+  // updated_blocks.push_back(odom_block_index_);
   normalizeYaw( odom_yaw );
 
-  for (int dx = -2; dx <= 2; ++dx) {
-    for (int dy = -2; dy <= 2; ++dy) {
+  for (int dx = -3; dx <= 3; ++dx) {
+    for (int dy = -3; dy <= 3; ++dy) {
       if (dx == 0 && dy == 0) continue;
 
       voxblox::BlockIndex goal_idx = odom_block_index_;
@@ -372,10 +372,12 @@ void FrontierMap::checkFrontiers()
     for (const auto& block_id : iter->block_idx_) {
       edited_block_idx_.insert( block_id );
     }
+    std::vector<Eigen::Vector3f> cluster = iter->cells_;
+    // ftr_visu_->deleteCoveredCubes( cluster, 0.1, "frontier", iter->id_ );
     iter = frontiers.erase(iter);
   };
 
-  std::cout << "Before remove: " << frontiers_.size() << std::endl;
+  // std::cout << "Before remove: " << frontiers_.size() << std::endl;
   removed_ids_.clear();
   int rmv_idx = 0;
 
@@ -385,12 +387,20 @@ void FrontierMap::checkFrontiers()
     for( const auto& block_id : iter->block_idx_ ) {
       if( std::find(updated_blocks_.begin(), updated_blocks_.end(), block_id) != updated_blocks_.end() ) {
         if( isFrontierChanged(*iter) ) 
-          {
-            resetFlag(iter, frontiers_);
-            removed_ids_.push_back(rmv_idx);
-            found = true;
-            break;
-          }
+        {
+          resetFlag(iter, frontiers_);
+          removed_ids_.push_back(rmv_idx);
+          found = true;
+          break;
+        }
+
+        // if( isFrontierChanged(*iter) ) 
+        // {
+          // resetFlag(iter, frontiers_);
+          // removed_ids_.push_back(rmv_idx);
+          // found = true;
+          // break;
+        // }
       }
     }
     if( found ) continue;
@@ -406,7 +416,7 @@ void FrontierMap::checkFrontiers()
     // }
   }
 
-  std::cout << "After remove: " << frontiers_.size() << std::endl;
+  // std::cout << "After remove: " << frontiers_.size() << std::endl;
   for (auto iter = dormant_frontiers_.begin(); iter != dormant_frontiers_.end();) 
   {
     // if( isFrontierChanged(*iter) ) 
@@ -430,13 +440,13 @@ void FrontierMap::checkFrontiers()
     ++iter;
   }
 
-  std::cout << "checkFrontiers end: " << frontiers_.size() << std::endl;
+  // std::cout << "checkFrontiers end: " << frontiers_.size() << std::endl;
 }
 
 
 void FrontierMap::searchFrontiers() 
 {
-  std::cout << "Start search: " << frontiers_.size() << std::endl;
+  // std::cout << "Start search: " << frontiers_.size() << std::endl;
   tmp_frontiers_.clear();
 
   voxblox::BlockIndexList final_list;
@@ -454,7 +464,7 @@ void FrontierMap::searchFrontiers()
   
   searched_.clear();
   std::cout << "updated + edited block size: " << final_list.size() << std::endl;
-  std::cout << "After search3: " << frontiers_.size() << std::endl;
+  // std::cout << "After search3: " << frontiers_.size() << std::endl;
 
   // Search new frontier within box slightly inflated from updated box
   for (const BlockIndex& block_index : final_list) {
@@ -495,12 +505,12 @@ void FrontierMap::searchFrontiers()
     }
   }
 
-  std::cout << "After search2: " << frontiers_.size() << std::endl;
+  // std::cout << "After search2: " << frontiers_.size() << std::endl;
 
   splitLargeFrontiers(tmp_frontiers_);
   visu_flag_ = true;
 
-  std::cout << "After search1: " << frontiers_.size() << std::endl;
+  // std::cout << "After search1: " << frontiers_.size() << std::endl;
 }
 
 
@@ -622,15 +632,15 @@ void FrontierMap::updateFrontierCostMatrix()
 {
   // if( !cost_update_ ) return;
 
-  std::cout << "frontiers_ size:" << frontiers_.size() << std::endl;;
-  std::cout << "cost mat size before remove: " << std::endl;
-  for (auto ftr : frontiers_)
-    std::cout << "(" << ftr.costs_.size() << "," << ftr.paths_.size() << "), ";
-  std::cout << "" << std::endl;
+  // std::cout << "frontiers_ size:" << frontiers_.size() << std::endl;;
+  // std::cout << "cost mat size before remove: " << std::endl;
+  // for (auto ftr : frontiers_)
+  //   std::cout << "(" << ftr.costs_.size() << "," << ftr.paths_.size() << "), ";
+  // std::cout << "" << std::endl;
 
-  std::cout << "removed_ids_:" << removed_ids_.size() << std::endl;
+  // std::cout << "removed_ids_:" << removed_ids_.size() << std::endl;
 
-  std::cout << "cost mat size remove: " << std::endl;
+  // std::cout << "cost mat size remove: " << std::endl;
   if (!removed_ids_.empty()) {
     // Delete path and cost for removed clusters
     for (auto it = frontiers_.begin(); it != first_new_ftr_; ++it) {
@@ -647,19 +657,20 @@ void FrontierMap::updateFrontierCostMatrix()
         cost_iter = it->costs_.erase(cost_iter);
         path_iter = it->paths_.erase(path_iter);
       }
-      std::cout << "(" << it->costs_.size() << "," << it->paths_.size() << "), ";
+      // std::cout << "(" << it->costs_.size() << "," << it->paths_.size() << "), ";
     }
     removed_ids_.clear();
   }
-  std::cout << "" << std::endl;
+  // std::cout << "" << std::endl;
 
   auto updateCost = [](const list<Frontier>::iterator& it1, const list<Frontier>::iterator& it2) {
-    std::cout << "(" << it1->id_ << "," << it2->id_ << "), ";
+    // std::cout << "(" << it1->id_ << "," << it2->id_ << "), ";
     // Search path from old cluster's top viewpoint to new cluster'
     Viewpoint& vui = it1->viewpoints_.front();
     Viewpoint& vuj = it2->viewpoints_.front();
     vector<Vector3f> path_ij;
     float cost_ij = ViewNode::computeCost( vui.pos_, vuj.pos_, vui.yaw_, vuj.yaw_, Vector3f(0, 0, 0), 0, path_ij );
+    // std::cout << "path_ij" << path_ij[0].z() << std::endl;
     // float cost_ij = 1.0;
     // Insert item for both old and new clusters
     it1->costs_.push_back(cost_ij);
@@ -669,7 +680,7 @@ void FrontierMap::updateFrontierCostMatrix()
     it2->paths_.push_back(path_ij);
   };
 
-  std::cout << "cost mat add: " << std::endl;
+  // std::cout << "cost mat add: " << std::endl;
   if (first_new_ftr_ == frontiers_.end()) {
     return;
   }
@@ -688,11 +699,11 @@ void FrontierMap::updateFrontierCostMatrix()
       } else
         updateCost(it1, it2);
     }
-  std::cout << "" << std::endl;
-  std::cout << "cost mat size final: " << std::endl;
-  for (auto ftr : frontiers_)
-    std::cout << "(" << ftr.costs_.size() << "," << ftr.paths_.size() << "), ";
-  std::cout << "" << std::endl;
+  // std::cout << "" << std::endl;
+  // std::cout << "cost mat size final: " << std::endl;
+  // for (auto ftr : frontiers_)
+  //   std::cout << "(" << ftr.costs_.size() << "," << ftr.paths_.size() << "), ";
+  // std::cout << "" << std::endl;
 
   // cost_update_ = false;
 }
@@ -777,6 +788,9 @@ void FrontierMap::visualizeFrontiers()
     if( !clusters.empty() ) {
       for (int i = 0; i < clusters.size(); ++i ) {
         ftr_visu_->drawCubes( clusters[i], 0.1, float(i) / clusters.size(), 0.4, "frontier", i );
+      }
+      for (int i = clusters.size(); i < 50; ++i) {
+        ftr_visu_->drawCubes({}, 0.1, Vector4f(0, 0, 0, 1), "frontier", i);
       }
     }
     visu_flag_ = false;
@@ -1064,7 +1078,7 @@ void FrontierMap::sampleViewpoints( Frontier& frontier, double &candidate_max, d
   const auto& cells = frontier.filtered_cells_;
   int num_cells = cells.size();
   Eigen::Vector3d frontier_avg = frontier.average_.cast<double>();
-  frontier_avg.z() = 1.0;
+  frontier_avg.z() = 1.2;
 
   for (double phi = -M_PI; phi < M_PI; phi += candidate_dphi_) {
     double cos_phi = cos(phi);
@@ -1167,9 +1181,8 @@ bool FrontierMap::ifPointinFOV( Eigen::Vector3f &odom_pos, float &start_theta, f
 
   // 只计算 x 和 y 方向上的距离
   float distance_xy = std::sqrt(std::pow(point.x() - odom_pos.x(), 2) + std::pow(point.y() - odom_pos.y(), 2));
-  if (distance_xy > 3.0f) {
-    return false;
-  }
+  if (distance_xy > 4.0f || distance_xy < 1.6f) 
+    { return false; }
   
   float point_angle = std::atan2(point.y() - odom_pos.y(), point.x() - odom_pos.x());
   normalizeYaw( point_angle );

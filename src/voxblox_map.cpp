@@ -100,8 +100,8 @@ VoxbloxMap::VoxelStatus VoxbloxMap::checkVoxelStatus( const voxblox::EsdfVoxel* 
                                                       const float &distance_thres ) const
 {
   if( voxel == nullptr || !voxel->observed || 
-      voxel->distance + 2 * distance_thres >= esdf_max_distance_m || 
-      voxel->distance <= -esdf_max_distance_m + 2 * distance_thres )
+      voxel->distance + 1.0 * distance_thres >= esdf_max_distance_m || 
+      voxel->distance <= -esdf_max_distance_m + 1.0 * distance_thres )
     { return VoxelStatus::kUnknown; }
 
   if( voxel->distance >= -0.8 * distance_thres )

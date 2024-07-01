@@ -42,14 +42,14 @@ void ExplorationFSM::init() {
 
 void ExplorationFSM::FSMCallback( const ros::TimerEvent& e ) 
 {
-  ROS_INFO_STREAM_THROTTLE(3.0, "[FSM]: state: " << state_str_[int(state_)]);
+  ROS_INFO_STREAM_THROTTLE(5.0, "[FSM]: state: " << state_str_[int(state_)]);
 
   switch (state_) {
     case INIT: {
 
       // Wait for odometry ready
       if (!have_odom_ ) {
-        ROS_WARN_THROTTLE(3.0, "No odom.");
+        ROS_WARN_THROTTLE(5.0, "No odom.");
         return;
       }
 
@@ -65,9 +65,9 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
     case ROTATE: {
       ROS_WARN_THROTTLE(2.0, "Drone rotates.");
       static int time = 0;
-      if( time < 4 ) {
+      if( time < 3 ) {
         droneRotate();
-        ros::Duration(4.0).sleep();
+        ros::Duration(2.4).sleep();
         // std::cout<< "drone rotates "<< std::endl; 
         time++;
         return;
@@ -81,7 +81,7 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
 
     case WAIT_TRIGGER: {
       // Do nothing but wait for trigger
-      ROS_WARN_THROTTLE(3.0, "Wait for trigger.");
+      ROS_WARN_THROTTLE(5.0, "Wait for trigger.");
       break;
     }
 
@@ -102,9 +102,6 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
         transitState(EXEC_TRAJ, "FSM");
       } else if (res == NO_FRONTIER) {
         transitState(FINISH, "FSM");
-      // } else if (res == FAIL) {
-      //   // Still in PLAN_TRAJ state, keep replanning
-      //   ROS_WARN("plan fail");
       }
       break;
     }
@@ -117,43 +114,44 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
     }
 
     case EXEC_TRAJ: {
-      if((odom_pos_ - next_pos_).norm() < 0.4f)
+      if((odom_pos_ - next_pos_).norm() < 0.3f )
       {
-        ros::Duration(0.3).sleep();
+        if(std::abs(odom_yaw_ - next_yaw_) < 15.0 * M_PI / 180.0) {
+          ros::Duration(0.3).sleep();
+          // transitState(PLAN_TRAJ, "FSM");
+        } else {
+          ROS_INFO("Drone did't reached the target Yaw angle, republic pose to flight controller.");
+          geometry_msgs::PoseStamped pose;
+          pose.header.frame_id = "world";
+          pose.pose.position.x = odom_pos_.x();
+          pose.pose.position.y = odom_pos_.y();
+          pose.pose.position.z = odom_pos_.z();
+
+          // Set the new orientation
+          Eigen::AngleAxisf yawAngle(next_yaw_, Eigen::Vector3f::UnitZ());
+          Eigen::Quaternionf q_yaw(yawAngle);
+          pose.pose.orientation.x = q_yaw.x();
+          pose.pose.orientation.y = q_yaw.y();
+          pose.pose.orientation.z = q_yaw.z();
+          pose.pose.orientation.w = q_yaw.w();
+
+          controller_pub_.publish(pose);
+          ros::Duration(1.0).sleep();
+        }
         transitState(PLAN_TRAJ, "FSM");
+        break;
       }
         
       if((last_odom_pos_ - odom_pos_).norm() < 0.01f){
         static int time = 0;
         if( time++ > 5 ) {
+          ROS_INFO("Drone remains stationary for 1.5s, replanning.");
           transitState(PLAN_TRAJ, "FSM");
         }
         break;
       }
 
       last_odom_pos_ = odom_pos_;
-        
-      // LocalTrajData* info = &planner_manager_->local_data_;
-      // double t_cur = (ros::Time::now() - info->start_time_).toSec();
-
-      // Replan if traj is almost fully executed
-      // double time_to_end = info->duration_ - t_cur;
-      // if (time_to_end < replan_thresh1_) {
-      //   transitState(PLAN_TRAJ, "FSM");
-      //   ROS_WARN("Replan: traj fully executed=================================");
-      //   return;
-      // }
-      // // Replan if next frontier to be visited is covered
-      // if (t_cur > replan_thresh2_ && exploration_manager_->frontiermap_->isFrontierCovered()) {
-      //   transitState(PLAN_TRAJ, "FSM");
-      //   ROS_WARN("Replan: cluster covered=====================================");
-      //   return;
-      // }
-      // // Replan after some time
-      // if (t_cur > replan_thresh3_ && !classic_) {
-      //   transitState(PLAN_TRAJ, "FSM");
-      //   ROS_WARN("Replan: periodic call=======================================");
-      // }
       break;
     }
   }
@@ -164,6 +162,15 @@ int ExplorationFSM::callExplorationPlanner()
 {
   // ros::Time time_r = ros::Time::now() + ros::Duration(replan_time_);
   int res = exploration_manager_->planExploreMotion( start_pt_, start_vel_, start_acc_, start_yaw_, next_pos_, next_yaw_ );
+  if((odom_pos_ - next_pos_).norm() < 0.3f) {
+    ROS_INFO("Next Viewpoint is nearby, skip and regenerate.");
+    start_pt_ = next_pos_;
+    start_vel_.setZero();
+    start_acc_.setZero();
+    start_yaw_(0) = next_yaw_;
+    start_yaw_(1) = start_yaw_(2) = 0.0;
+    res = exploration_manager_->planExploreMotion( start_pt_, start_vel_, start_acc_, start_yaw_, next_pos_, next_yaw_ );
+  }
   // pub next point
   geometry_msgs::PoseStamped pose;
   pose.header.frame_id = "world";
@@ -181,37 +188,8 @@ int ExplorationFSM::callExplorationPlanner()
 
   std::cout << "Next view: " << next_pos_.transpose() << ", " << next_yaw_ << std::endl;
 
+  // waypoint_pub_.publish(pose);
   waypoint_pub_.publish(pose);
-  waypoint_pub_.publish(pose);
-
-  // if (res == SUCCEED) {
-  //   auto info = &planner_manager_->local_data_;
-  //   info->start_time_ = (ros::Time::now() - time_r).toSec() > 0 ? ros::Time::now() : time_r;
-
-  //   bspline::Bspline bspline;
-  //   bspline.order = planner_manager_->pp_.bspline_degree_;
-  //   bspline.start_time = info->start_time_;
-  //   bspline.traj_id = info->traj_id_;
-  //   Eigen::MatrixXd pos_pts = info->position_traj_.getControlPoint();
-  //   for (int i = 0; i < pos_pts.rows(); ++i) {
-  //     geometry_msgs::Point pt;
-  //     pt.x = pos_pts(i, 0);
-  //     pt.y = pos_pts(i, 1);
-  //     pt.z = pos_pts(i, 2);
-  //     bspline.pos_pts.push_back(pt);
-  //   }
-  //   Eigen::VectorXd knots = info->position_traj_.getKnot();
-  //   for (int i = 0; i < knots.rows(); ++i) {
-  //     bspline.knots.push_back(knots(i));
-  //   }
-  //   Eigen::MatrixXd yaw_pts = info->yaw_traj_.getControlPoint();
-  //   for (int i = 0; i < yaw_pts.rows(); ++i) {
-  //     double yaw = yaw_pts(i, 0);
-  //     bspline.yaw_pts.push_back(yaw);
-  //   }
-  //   bspline.yaw_dt = info->yaw_traj_.getKnotSpan();
-  //   newest_traj_ = bspline;
-  // }
   return res;
 }
 

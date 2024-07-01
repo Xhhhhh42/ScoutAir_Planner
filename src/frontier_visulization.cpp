@@ -26,6 +26,21 @@ FtrVisulization::~FtrVisulization() {
 }
 
 
+void FtrVisulization::deleteCoveredCubes( const std::vector<Eigen::Vector3f>& list, const float& scale,
+                                          const std::string& ns, const int& id /* const int& pub_id */ )
+{
+  visualization_msgs::Marker mk;
+  Eigen::Vector4f color;
+  color << 0, 0, 1, 1;
+  fillBasicInfo(mk, Eigen::Vector3f(scale, scale, scale), color, ns, id,
+                visualization_msgs::Marker::CUBE_LIST);
+
+  // clean old marker
+  mk.action = visualization_msgs::Marker::DELETE;
+  frontier_pub_.publish(mk);
+}           
+
+
 void FtrVisulization::drawCubes( const std::vector<Eigen::Vector3f>& list, const float& scale, const float& color_h, float color_alpha,
                                  const std::string& ns, const int& id /* const int& pub_id */ ) 
 {
@@ -43,6 +58,25 @@ void FtrVisulization::drawCubes( const std::vector<Eigen::Vector3f>& list, const
   mk.action = visualization_msgs::Marker::ADD;
   frontier_pub_.publish(mk);
   ros::Duration(0.000001).sleep();
+}
+
+
+void FtrVisulization::drawCubes( const std::vector<Eigen::Vector3f>& list, const float& scale,
+                                 const Eigen::Vector4f& color, const std::string& ns, const int& id )
+{
+  visualization_msgs::Marker mk;
+  fillBasicInfo(mk, Eigen::Vector3f(scale, scale, scale), color, ns, id,
+                visualization_msgs::Marker::CUBE_LIST);
+
+  // clean old marker
+  mk.action = visualization_msgs::Marker::DELETE;
+  frontier_pub_.publish(mk);
+
+  // // pub new marker
+  // fillGeometryInfo(mk, list);
+  // mk.action = visualization_msgs::Marker::ADD;
+  // pubs_[pub_id].publish(mk);
+  // ros::Duration(0.0005).sleep();
 }
 
 
