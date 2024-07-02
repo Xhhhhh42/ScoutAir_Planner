@@ -1078,7 +1078,7 @@ void FrontierMap::sampleViewpoints( Frontier& frontier, double &candidate_max, d
   const auto& cells = frontier.filtered_cells_;
   int num_cells = cells.size();
   Eigen::Vector3d frontier_avg = frontier.average_.cast<double>();
-  frontier_avg.z() = 1.2;
+  frontier_avg.z() = 1.3;
 
   for (double phi = -M_PI; phi < M_PI; phi += candidate_dphi_) {
     double cos_phi = cos(phi);

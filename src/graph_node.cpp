@@ -78,6 +78,7 @@ float ViewNode::searchPath(const Eigen::Vector3f& pos1, const Eigen::Vector3f& p
     astar_->reset();
     astar_->setResolution(res[k]);
     if (astar_->search(pos1, pos2) == Astar::REACH_END) {
+      std::cout << "Search a path using astar!" << std::endl;
       path = astar_->getPath();
       return astar_->pathLength(path);
     }
@@ -112,6 +113,6 @@ float ViewNode::computeCost( const Eigen::Vector3f& pos1, const Eigen::Vector3f&
   diff = min(diff, static_cast<float>( 2 * M_PI - diff ));
   float yaw_cost = diff / yd_;
   return max(pos_cost, yaw_cost);
+}
 
-}
-}
+} // namespace scoutair_planner 

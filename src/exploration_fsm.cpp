@@ -21,7 +21,7 @@ void ExplorationFSM::init() {
   
   state_ = EXPL_STATE::INIT;
   have_odom_ = false;
-  state_str_ = { "INIT", "ROTATE", "WAIT_TRIGGER", "PLAN_TRAJ", "PUB_TRAJ", "EXEC_TRAJ", "FINISH" };
+  state_str_ = { "INIT", "ROTATE", "WAIT_TRIGGER", "PLAN_TRAJ", "OVERPASS", "EXEC_TRAJ", "FINISH" };
   trigger_ = false; 
 
   /* Ros sub, pub and timer */
@@ -106,15 +106,31 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
       break;
     }
 
-    case PUB_TRAJ: {
-      // thread vis_thread(&ExplorationFSM::visualize, this);
-      // vis_thread.detach();
-      transitState(EXEC_TRAJ, "FSM");
+    case OVERPASS: {
+      geometry_msgs::PoseStamped pose;
+      pose.header.frame_id = "world";
+      pose.pose.position.x = odom_pos_.x();
+      pose.pose.position.y = odom_pos_.y();
+      pose.pose.position.z = 1.7;
+
+      // Set the new orientation
+      Eigen::AngleAxisf yawAngle((next_yaw_ + odom_yaw_)/2, Eigen::Vector3f::UnitZ());
+      Eigen::Quaternionf q_yaw(yawAngle);
+      pose.pose.orientation.x = q_yaw.x();
+      pose.pose.orientation.y = q_yaw.y();
+      pose.pose.orientation.z = q_yaw.z();
+      pose.pose.orientation.w = q_yaw.w();
+
+      controller_pub_.publish(pose);
+      ROS_INFO("Drone meets obstacle.");
+      ros::Duration(1.0).sleep();
+      
+      transitState(PLAN_TRAJ, "FSM");
       break;
     }
 
     case EXEC_TRAJ: {
-      if((odom_pos_ - next_pos_).norm() < 0.3f )
+      if((odom_pos_ - next_pos_).norm() < 0.2f )
       {
         if(std::abs(odom_yaw_ - next_yaw_) < 15.0 * M_PI / 180.0) {
           ros::Duration(0.3).sleep();
@@ -138,15 +154,22 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
           controller_pub_.publish(pose);
           ros::Duration(1.0).sleep();
         }
+        last_odom_pos_ = odom_pos_;
         transitState(PLAN_TRAJ, "FSM");
         break;
       }
         
-      if((last_odom_pos_ - odom_pos_).norm() < 0.01f){
+      if((last_odom_pos_ - odom_pos_).norm() < 0.05f){
         static int time = 0;
-        if( time++ > 5 ) {
-          ROS_INFO("Drone remains stationary for 1.5s, replanning.");
+        if( time++ > 3 ) {
+          static int replan = 0;
+          ROS_INFO("Drone remains stationary for 1.0s, replanning.");
+          // if( replan++ >= 2 ) {
+          //   transitState(OVERPASS, "FSM");
+          //   replan = 0;
+          // }
           transitState(PLAN_TRAJ, "FSM");
+          time = 0;
         }
         break;
       }
@@ -162,7 +185,7 @@ int ExplorationFSM::callExplorationPlanner()
 {
   // ros::Time time_r = ros::Time::now() + ros::Duration(replan_time_);
   int res = exploration_manager_->planExploreMotion( start_pt_, start_vel_, start_acc_, start_yaw_, next_pos_, next_yaw_ );
-  if((odom_pos_ - next_pos_).norm() < 0.3f) {
+  if((odom_pos_ - next_pos_).norm() < 0.5f) {
     ROS_INFO("Next Viewpoint is nearby, skip and regenerate.");
     start_pt_ = next_pos_;
     start_vel_.setZero();

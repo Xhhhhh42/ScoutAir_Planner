@@ -27,7 +27,7 @@ namespace scoutair_planner {
 // struct FSMParam;
 // struct FSMData;
 
-enum EXPL_STATE { INIT, ROTATE, WAIT_TRIGGER, PLAN_TRAJ, PUB_TRAJ, EXEC_TRAJ, FINISH };
+enum EXPL_STATE { INIT, ROTATE, WAIT_TRIGGER, PLAN_TRAJ, OVERPASS, EXEC_TRAJ, FINISH };
 
 class ExplorationFSM 
 {
