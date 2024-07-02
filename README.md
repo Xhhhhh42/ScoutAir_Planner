@@ -15,4 +15,12 @@ Maintainer: Yuchen Xia
 
 2. __Dependencies__
 
+<p align="center">
+<img src="./doc/frontier_tour.png" alt="Frontier Tour" width="600" height="500">
+</p>
+
+<p align="center">
+<img src="./doc/explorated_map.png" alt="Explorated Map" width="600" height="500">
+</p>
+
    
