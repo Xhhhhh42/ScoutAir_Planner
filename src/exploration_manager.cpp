@@ -1,4 +1,3 @@
-// #include <fstream>
 #include <scoutair_planner/exploration_manager.h>
 #include <thread>
 #include <iostream>
@@ -9,10 +8,7 @@
 #include <scoutair_planner/graph_search.h>
 #include <scoutair_planner/perception_utils.h>
 #include <scoutair_planner/raycast.h>
-// #include <plan_env/sdf_map.h>
-// #include <plan_env/edt_environment.h>
 #include <scoutair_planner/frontier_map.h>
-// #include <plan_manage/planner_manager.h>
 
 
 #include <pcl/point_cloud.h>
@@ -20,7 +16,6 @@
 #include <visualization_msgs/Marker.h>
 
 namespace scoutair_planner {
-// SECTION interfaces for setup and query
 
 using namespace Eigen;
 using namespace std;
@@ -40,9 +35,7 @@ ExplorationManager::~ExplorationManager()
 }
 
 void ExplorationManager::initialize() 
-{
-  // view_finder_.reset(new ViewFinder(edt_environment_, nh));
-  
+{ 
   frontiermap_.reset(new FrontierMap( nh_, nh_private_ ));
   frontiermap_->init();
 
@@ -57,8 +50,6 @@ void ExplorationManager::initialize()
   origin = frontiermap_->voxbloxmap_origin_;
   ViewNode::caster_.reset(new RayCaster);
   ViewNode::caster_->setParams(resolution_, origin);
-
-  // frontier_timer_ = nh_private_.createTimer(ros::Duration(0.1), &ExplorationManager::frontierCallback, this);
 
   manager_visu_ = frontiermap_->ftr_visu_;
 
@@ -108,7 +99,7 @@ void ExplorationManager::frontierCallback( const ros::TimerEvent& e )
 
 
 int ExplorationManager::planExploreMotion( const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const Eigen::Vector3f& acc, 
-                                           const Eigen::Vector3f& yaw, Eigen::Vector3f &next_pos, float &next_yaw ) 
+                                           const Eigen::Vector3f& yaw, std::vector<Eigen::Vector3f> &next_pos_vec, std::vector<float> &next_yaw_vec ) 
 {
   ros::Time t1 = ros::Time::now();
   // auto t2 = t1;
@@ -123,14 +114,9 @@ int ExplorationManager::planExploreMotion( const Eigen::Vector3f& pos, const Eig
 
   std::cout << "start pos: " << pos.transpose() << "\nvel:      " << vel.transpose() << std::endl;
 
-  // // Search frontiers and group them into clusters
-  // frontiermap_->searchFrontiers();
-
-  // double frontier_time = (ros::Time::now() - t1).toSec();
   t1 = ros::Time::now();
 
   // Find viewpoints (x,y,z,yaw) for all frontier clusters and get visible ones' info
-  // frontiermap_->computeFrontiersToVisit();
   frontiermap_->getFrontiers(frontiers_);
 
   if (frontiers_.empty()) {
@@ -142,7 +128,7 @@ int ExplorationManager::planExploreMotion( const Eigen::Vector3f& pos, const Eig
     views_.push_back(
         points_[i] + 2.0 * Eigen::Vector3f(cos(yaws_[i]), sin(yaws_[i]), 0));
 
-  double view_time = (ros::Time::now() - t1).toSec();
+  // double view_time = (ros::Time::now() - t1).toSec();
   // ROS_WARN( "Frontier: %ld, t: %lf, viewpoint: %ld, t: %lf", frontiers_.size(), frontier_time, points_.size(), view_time);
 
   // Do global and local tour planning and retrieve the next viewpoint
@@ -177,55 +163,64 @@ int ExplorationManager::planExploreMotion( const Eigen::Vector3f& pos, const Eig
       refined_views_.clear();
       std::vector<float> refined_yaws;
       refineLocalTour(pos, vel, yaw, ed_->n_points_, n_yaws, ed_->refined_points_, refined_yaws);
-      next_pos = ed_->refined_points_[0];
-      next_yaw = refined_yaws[0];
+      next_pos_vec = ed_->refined_points_;
+      next_yaw_vec = refined_yaws;
+      // next_pos = ed_->refined_points_[0];
+      // next_yaw = refined_yaws[0];
 
     } else {
       // Choose the next viewpoint from global tour
-      next_pos = points_[indices[0]];
-      next_yaw = yaws_[indices[0]];
+      if( indices.size() != points_.size() ) {
+        ROS_ERROR("ExplorationManager::planExploreMotion ERROR with findGlobalTour.");
+      }
+      for( auto ele: indices ) {
+        next_pos_vec.push_back(points_[ele]);
+        next_yaw_vec.push_back(yaws_[ele]);
+      }
+      // next_pos = points_[indices[0]];
+      // next_yaw = yaws_[indices[0]];
     }
   } else if (points_.size() == 1) {
     // Only 1 destination, no need to find global tour through TSP
     ed_->global_tour_ = { pos, points_[0] };
     ed_->refined_tour_.clear();    
 
-    if (ep_->refine_local_) {
-      // Find the min cost viewpoint for next frontier
-      ed_->refined_ids_ = { 0 };
-      ed_->unrefined_points_ = { points_[0] };
-      ed_->n_points_.clear();
-      std::vector<std::vector<float>> n_yaws;
-      frontiermap_->getViewpointsInfo(
-          pos, { 0 }, ep_->top_view_num_, ep_->max_decay_, ed_->n_points_, n_yaws);
+    // if (ep_->refine_local_) {
+    //   // Find the min cost viewpoint for next frontier
+    //   ed_->refined_ids_ = { 0 };
+    //   ed_->unrefined_points_ = { points_[0] };
+    //   ed_->n_points_.clear();
+    //   std::vector<std::vector<float>> n_yaws;
+    //   frontiermap_->getViewpointsInfo(
+    //       pos, { 0 }, ep_->top_view_num_, ep_->max_decay_, ed_->n_points_, n_yaws);
 
-      double min_cost = 100000;
-      int min_cost_id = -1;
-      std::vector<Eigen::Vector3f> tmp_path;
-      for (int i = 0; i < ed_->n_points_[0].size(); ++i) {
-        auto tmp_cost = ViewNode::computeCost(
-            pos, ed_->n_points_[0][i], yaw[0], n_yaws[0][i], vel, yaw[1], tmp_path);
-        if (tmp_cost < min_cost) {
-          min_cost = tmp_cost;
-          min_cost_id = i;
-        }
-      }
-      next_pos = ed_->n_points_[0][min_cost_id];
-      next_yaw = n_yaws[0][min_cost_id];
-      ed_->refined_points_ = { next_pos };
-      refined_views_ = { next_pos + 2.0 * Eigen::Vector3f(cos(next_yaw), sin(next_yaw), 0) };
-    } else {
-      next_pos = points_[0];
-      next_yaw = yaws_[0];
-    }
+    //   double min_cost = 100000;
+    //   int min_cost_id = -1;
+    //   std::vector<Eigen::Vector3f> tmp_path;
+    //   for (int i = 0; i < ed_->n_points_[0].size(); ++i) {
+    //     auto tmp_cost = ViewNode::computeCost(
+    //         pos, ed_->n_points_[0][i], yaw[0], n_yaws[0][i], vel, yaw[1], tmp_path);
+    //     if (tmp_cost < min_cost) {
+    //       min_cost = tmp_cost;
+    //       min_cost_id = i;
+    //     }
+    //   }
+    //   next_pos = ed_->n_points_[0][min_cost_id];
+    //   next_yaw = n_yaws[0][min_cost_id];
+    //   ed_->refined_points_ = { next_pos };
+    //   refined_views_ = { next_pos + 2.0 * Eigen::Vector3f(cos(next_yaw), sin(next_yaw), 0) };
+    // } else {
+    //   next_pos = points_[0];
+    //   next_yaw = yaws_[0];
+    // }
+    next_pos_vec.push_back(points_[0]);
+    next_yaw_vec.push_back(yaws_[0]);
   } else
     ROS_ERROR("Empty destination.");
 
   // std::cout << "Next view: " << next_pos.transpose() << ", " << next_yaw << std::endl;
 
   manager_visu_->publishGlobalTour(ed_->global_tour_);
-  // next_pos = ed_->global_tour_[1];
-  // manager_visu_->publishGlobalTour(ed_->refined_points_);
 
   return SUCCEED;
 }
@@ -244,7 +239,7 @@ void ExplorationManager::findGlobalTour( const Eigen::Vector3f& cur_pos, const E
 
   // std::cout<<"cost_matrix rows" <<std::endl;
 
-  double mat_time = (ros::Time::now() - t1).toSec();
+  // double mat_time = (ros::Time::now() - t1).toSec();
   t1 = ros::Time::now();
 
   // Write params and cost matrix to problem file

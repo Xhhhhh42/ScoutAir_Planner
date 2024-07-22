@@ -24,6 +24,13 @@ float intbound(float s, float ds) {
   }
 }
 
+/// @brief 在三维网格体素（体像素）中跟踪一条射线，并确定射线与哪些体素相交
+/// @param start 射线在三维空间中的起点
+/// @param end 射线在三维空间中的起点
+/// @param min 三维网格的最小边界
+/// @param max 
+/// @param output_points_cnt 引用整数，表示输出点的数量
+/// @param output 指向Eigen::Vector3f数组的指针，用于存储输出点的坐标
 void Raycast(const Eigen::Vector3f& start, const Eigen::Vector3f& end, const Eigen::Vector3f& min,
              const Eigen::Vector3f& max, int& output_points_cnt, Eigen::Vector3f* output) {
   //    std::cout << start << ' ' << end << std::endl;

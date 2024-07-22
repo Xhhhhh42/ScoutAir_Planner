@@ -18,6 +18,7 @@
   <build_depend>pcl_ros</build_depend>
   <build_depend>esdf_idx_updater</build_depend>
   <build_depend>lkh_tsp_solver</build_depend>
+  <build_depend>scoutair_planner_msgs</build_depend>
   
   <!-- The export tag contains other, unspecified, tags -->
   <export>

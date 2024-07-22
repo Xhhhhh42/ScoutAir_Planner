@@ -131,20 +131,6 @@ void FrontierMap::frontierCallback( const ros::TimerEvent& e )
 }
 
 
-// void FrontierMap::visCallback( const ros::TimerEvent& e ) 
-// {
-//   std::vector<std::vector<Eigen::Vector3f>> clusters; 
-//   getFrontiers( clusters );
-//   if( !clusters.empty() ) {
-//     for (int i = 0; i < clusters.size(); ++i ) {
-//       ftr_visu_->drawCubes( clusters[i], 0.1, float(i) / clusters.size(), 0.4, "frontier", i );
-//       // drawCubes( clusters[i], 0.1, getColor(float(i) / clusters.size(), 0.4), "frontier", i );
-//     }
-//   }
-//   visu_flag_ = false;
-// }
-
-
 bool FrontierMap::initFrontierMap()
 {
   // // 获取更新的区块
@@ -190,7 +176,7 @@ void FrontierMap::updateFrontierMap()
   ros::Time time = ros::Time::now();
   findScanZone( odom_pos_, odom_yaw_, updated_blocks_ );
   // ROS_WARN( "current time: %lf", ros::Time::now().toSec());
-  ROS_WARN( "findZone: %lf", (ros::Time::now() - time).toSec());
+  // ROS_WARN( "findZone: %lf", (ros::Time::now() - time).toSec());
 
   checkFrontiers();
 
@@ -373,7 +359,6 @@ void FrontierMap::checkFrontiers()
       edited_block_idx_.insert( block_id );
     }
     std::vector<Eigen::Vector3f> cluster = iter->cells_;
-    // ftr_visu_->deleteCoveredCubes( cluster, 0.1, "frontier", iter->id_ );
     iter = frontiers.erase(iter);
   };
 
@@ -393,27 +378,11 @@ void FrontierMap::checkFrontiers()
           found = true;
           break;
         }
-
-        // if( isFrontierChanged(*iter) ) 
-        // {
-          // resetFlag(iter, frontiers_);
-          // removed_ids_.push_back(rmv_idx);
-          // found = true;
-          // break;
-        // }
       }
     }
     if( found ) continue;
     ++rmv_idx;
     ++iter;
-    // if( isFrontierChanged(*iter) ) 
-    // {
-    //   resetFlag(iter, frontiers_);
-    //   removed_ids_.push_back(rmv_idx);
-    // } else {
-    //   ++rmv_idx;
-    //   ++iter;
-    // }
   }
 
   // std::cout << "After remove: " << frontiers_.size() << std::endl;
@@ -446,7 +415,6 @@ void FrontierMap::checkFrontiers()
 
 void FrontierMap::searchFrontiers() 
 {
-  // std::cout << "Start search: " << frontiers_.size() << std::endl;
   tmp_frontiers_.clear();
 
   voxblox::BlockIndexList final_list;
@@ -464,7 +432,6 @@ void FrontierMap::searchFrontiers()
   
   searched_.clear();
   std::cout << "updated + edited block size: " << final_list.size() << std::endl;
-  // std::cout << "After search3: " << frontiers_.size() << std::endl;
 
   // Search new frontier within box slightly inflated from updated box
   for (const BlockIndex& block_index : final_list) {
@@ -505,19 +472,15 @@ void FrontierMap::searchFrontiers()
     }
   }
 
-  // std::cout << "After search2: " << frontiers_.size() << std::endl;
-
   splitLargeFrontiers(tmp_frontiers_);
   visu_flag_ = true;
-
-  // std::cout << "After search1: " << frontiers_.size() << std::endl;
 }
 
 
 void FrontierMap::computeFrontiersToVisit() 
 {
   first_new_ftr_ = frontiers_.end();
-  std::cout << "tmp_frontiers_ size: " << tmp_frontiers_.size() << std::endl;
+  // std::cout << "tmp_frontiers_ size: " << tmp_frontiers_.size() << std::endl;
   if( tmp_frontiers_.size() <= 0 ) return;
   
   int new_num = 0;
@@ -525,7 +488,7 @@ void FrontierMap::computeFrontiersToVisit()
   for (auto& tmp_ftr : tmp_frontiers_) {
     // Search viewpoints around frontier
     sampleViewpoints( tmp_ftr, candidate_max_, candidate_min_, candidate_diff_, voxel_size_, min_visib_num_ );
-    if (!tmp_ftr.viewpoints_.empty()) {
+    if (!tmp_ftr.viewpoints_.empty() && tmp_ftr.average_.z() > 0.8f ) {
       ++new_num;
       list<Frontier>::iterator inserted = frontiers_.insert(frontiers_.end(), tmp_ftr);
       // Sort the viewpoints by coverage fraction, best view in front
@@ -546,8 +509,6 @@ void FrontierMap::computeFrontiersToVisit()
   for (auto& ft : frontiers_) {
     ft.id_ = idx++;
   }
-
-  // cost_update_ = true;
 }
 
 
@@ -630,8 +591,6 @@ void FrontierMap::getViewpointsInfo( const Eigen::Vector3f& cur_pos, const std::
 
 void FrontierMap::updateFrontierCostMatrix() 
 {
-  // if( !cost_update_ ) return;
-
   // std::cout << "frontiers_ size:" << frontiers_.size() << std::endl;;
   // std::cout << "cost mat size before remove: " << std::endl;
   // for (auto ftr : frontiers_)
@@ -845,8 +804,6 @@ bool FrontierMap::isFrontierChanged( const Frontier& ft )
 void FrontierMap::expandFrontier( const voxblox::GlobalIndex &global_voxel_index, const voxblox::BlockIndex block_index,
                                   const int &linear_index /* , const int& depth, const int& parent_id */ ) 
 {
-  // auto t1 = ros::Time::now();
-
   // Data for clustering
   queue<voxblox::GlobalIndex> cell_queue;
   std::vector<voxblox::Point> expanded;
@@ -1130,14 +1087,22 @@ void FrontierMap::wrapYaw(float& yaw) {
 }
 
 
+/// @brief 
+/// @param odom_pos 
+/// @param odom_yaw 
+/// @param goal_idx 
+/// @return 
 bool FrontierMap::ifBlockinFOV( Eigen::Vector3f &odom_pos, float &odom_yaw, voxblox::BlockIndex &goal_idx )
 {
+  // 获取给定的目标块索引处的ESDF块指针
   float length = voxel_size_ * voxels_per_side_;
   voxblox::Block<EsdfVoxel>::Ptr esdf_block = esdf_layer_->getBlockPtrByIndex(goal_idx);
   
+  // 如果块不存在，返回false
   if( !esdf_block ) 
     return false;
   
+  // 获取目标块的原点以及四个角
   // voxblox::Point goal_origin = esdf_block->origin();
   // voxblox::Point larger_x = goal_origin;
   // voxblox::Point larger_y = goal_origin;
@@ -1153,6 +1118,8 @@ bool FrontierMap::ifBlockinFOV( Eigen::Vector3f &odom_pos, float &odom_yaw, voxb
   // larger_y.y() += length;
   // larger_xy.x() += length;
   // larger_xy.y() += length;
+
+  // 计算视场角的上下限
   float theta1 = odom_yaw + half_theta_;
   float theta2 = odom_yaw - half_theta_;
   normalizeYaw( theta1 );
@@ -1164,6 +1131,7 @@ bool FrontierMap::ifBlockinFOV( Eigen::Vector3f &odom_pos, float &odom_yaw, voxb
   //     ifPointinFOV( odom_pos, theta1, theta2, goal_origin ) )
   //   { return true; }
 
+  // 检查目标块的任意一个角是否在视场范围内
   for (const auto& corner : corners) {
     if (ifPointinFOV(odom_pos, theta1, theta2, corner)) {
       return true;
@@ -1181,16 +1149,19 @@ bool FrontierMap::ifPointinFOV( Eigen::Vector3f &odom_pos, float &start_theta, f
 
   // 只计算 x 和 y 方向上的距离
   float distance_xy = std::sqrt(std::pow(point.x() - odom_pos.x(), 2) + std::pow(point.y() - odom_pos.y(), 2));
-  if (distance_xy > 4.0f || distance_xy < 1.6f) 
+  if (distance_xy > 4.0f || distance_xy < 0.4f) 
     { return false; }
   
+  // 计算点相对于起始位置的角度
   float point_angle = std::atan2(point.y() - odom_pos.y(), point.x() - odom_pos.x());
   normalizeYaw( point_angle );
 
   // 确保扇形角度范围是顺时针方向
   if (start_theta > end_theta) {
+    // 如果起始角度大于终止角度，则点的角度需要在起始角度和终止角度之间
     return point_angle <= start_theta && point_angle >= end_theta;
   } else {
+    // 如果起始角度小于终止角度，则点的角度需要在起始角度或终止角度之外
     return point_angle <= start_theta || point_angle >= end_theta;
   }
 }

@@ -28,7 +28,7 @@ public:
   void initialize();
 
   int planExploreMotion( const Eigen::Vector3f& pos, const Eigen::Vector3f& vel, const Eigen::Vector3f& acc,
-                         const Eigen::Vector3f& yaw, Eigen::Vector3f &next_pos, float &next_yaw );
+                         const Eigen::Vector3f& yaw, std::vector<Eigen::Vector3f> &next_pos_vec, std::vector<float> &next_yaw_vec );
 
   std::shared_ptr<FrontierMap> frontiermap_;
 
