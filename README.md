@@ -4,7 +4,7 @@ Maintainer: Yuchen Xia
 ## Introduction 
 
 <p align="center">
-<img src="./doc/FIS.png" alt="Frontier Map" width="300" height="200">
+<img src="./doc/FIS.png" alt="Frontier Map" width="400" height="250">
 </p>
 
 With this Repo, you can ...
@@ -52,14 +52,20 @@ With this Repo, you can ...
 
       Examples: `voxblox_skeleton_planner`, `voxblox_rrt_planner` etc. in `mav_voxblox_planning`; or `rotors_gazebo_plugins` in `rotors_simulator`.
 
-   2. timestamp:
+   2. redundant timestamp:
       The `mav_local_planner` demo in `mav_voxblox_planning` is based on ROS package `mav_nonlinear_mpc`(which is still based on ROS package `mav_control_interface` in folder `mav_control_rw`)
 
       Repo: [mav_control_rw](https://github.com/ethz-asl/mav_control_rw) (Control strategies for rotary wing Micro Aerial Vehicles (MAVs) using ROS)
 
       ROS package: mav_control_interface (Basic interface that provides ros access to the (position) controller, and takes input from the RC into account.)
 
-      Edit code in the folder `mav_control_rw/mav_control_interface/src/state_machine.cpp` 
+      When running the simulation demo, a large number of tf data with the same timestamp are published, resulting in the following errors:
+      ```
+      [WARN] [1721695180.990697077, 6864.180000000]: TF_REPEATED_DATA ignoring data with redundant timestamp for frame firefly/current_reference (parent odom) at time 6864.178000 according to authority unknown_publisher
+      Warning: TF_REPEATED_DATA ignoring data with redundant timestamp for frame firefly/current_reference (parent odom) at time 6864.178000 according to authority unknown_publisher at line 278 in /tmp/binarydeb/ros-noetic-tf2-0.7.7/src/buffer_core.cpp
+      ```
+
+      To fix the problem, edit code in the folder `mav_control_rw/mav_control_interface/src/state_machine.cpp` 
 
       ```
       # transform_broadcaster_.sendTransform( tf::StampedTransform(transform, time_now, reference_frame_id_, nh_.getNamespace() + "/current_reference"));
