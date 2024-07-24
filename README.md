@@ -2,12 +2,17 @@
 Maintainer: Yuchen Xia
 
 ## Introduction 
+With this Repo, you can ...
 
 <p align="center">
 <img src="./doc/FIS.png" alt="Frontier Map" width="400" height="250">
 </p>
 
-With this Repo, you can ...
+<!-- ![scoutair](./doc/Thesis_ScoutAir_Planner.gif) -->
+
+<p align="center">
+<img src="./doc/Thesis_ScoutAir_Planner.gif" alt="ScoutAir Planner">
+</p>
 
 1. Refering build section fo setup the package:
     - [Prerequisites](#prerequisites)
@@ -134,6 +139,7 @@ Now the start location will automatically track the odometry of the Firefly as i
 <img src="./doc/frontier_tour.png" alt="Frontier Tour" width="600" height="500">
 </p>
 
+First, we need to call the 'Start' ROS Service once to start the autonomous exploration after the initialization, which involves the drone rotating.
 
 Use Ros service to stop / restart ScoutAir Autonomous Planner.
 

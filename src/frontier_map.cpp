@@ -6,6 +6,7 @@
 #include <scoutair_planner/graph_node.h>
 #include <scoutair_planner/graph_node.h>
 
+#include <fstream>  // For file operations
 
 namespace scoutair_planner {
 
@@ -183,14 +184,21 @@ void FrontierMap::updateFrontierMap()
   time = ros::Time::now();
   searchFrontiers();
   // ROS_WARN( "current time: %lf", ros::Time::now().toSec());
+  double searchFrontiersTime = (ros::Time::now() - time).toSec();
   ROS_WARN( "searchFrontiers: %lf", (ros::Time::now() - time).toSec());
 
   time = ros::Time::now();
   computeFrontiersToVisit();
+  double computeFrontiersToVisitTime = (ros::Time::now() - time).toSec();
   ROS_WARN( "computeFrontiersToVisit: %lf", (ros::Time::now() - time).toSec());
+
   time = ros::Time::now();
   updateFrontierCostMatrix();
+  double updateFrontierCostMatrixTime = (ros::Time::now() - time).toSec();
   ROS_WARN( "updateFrontierCostMatrix: %lf", (ros::Time::now() - time).toSec());
+
+  logTimesToFile(searchFrontiersTime, computeFrontiersToVisitTime, updateFrontierCostMatrixTime);
+
 }
 
 
@@ -1242,6 +1250,20 @@ voxblox::GlobalIndex FrontierMap::eigenVector3iToGlobalIndex( Eigen::Vector3i& i
   global_index[1] = static_cast<voxblox::LongIndexElement>(idx[1]);
   global_index[2] = static_cast<voxblox::LongIndexElement>(idx[2]);
   return global_index;
+}
+
+
+void FrontierMap::logTimesToFile( double searchFrontiersTime, double computeFrontiersToVisitTime, double updateFrontierCostMatrixTime ) 
+{
+  std::ofstream outfile("/home/xhhh/vox_ws/src/scoutair_planner/Time_performance/timing_log.txt", std::ios::app);  // Open the file in append mode
+  if (outfile.is_open()) {
+    outfile << "searchFrontiers: " << searchFrontiersTime << " seconds\n";
+    outfile << "computeFrontiersToVisit: " << computeFrontiersToVisitTime << " seconds\n";
+    outfile << "updateFrontierCostMatrix: " << updateFrontierCostMatrixTime << " seconds\n";
+    outfile.close();  // Close the file
+  } else {
+    ROS_ERROR("Failed to open timing_log.txt for writing.");
+  }
 }
 
 }  // namespace scoutair_planner

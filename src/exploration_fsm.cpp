@@ -19,6 +19,7 @@ void ExplorationFSM::init() {
   trigger_ = false; 
   ready_to_fly_ = false;
   paused_ = false;
+  init_start_ = false;
 
   /* Ros sub, pub and timer */
   start_service_ = nh_private_.advertiseService("start_planner", &ExplorationFSM::startPlannerCallback, this);
@@ -43,7 +44,6 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
 
   switch (state_) {
     case INIT: {
-
       // Wait for odometry ready
       if (!have_odom_ ) {
         ROS_WARN_THROTTLE(5.0, "No odom.");
@@ -53,6 +53,11 @@ void ExplorationFSM::FSMCallback( const ros::TimerEvent& e )
       if ( odom_pos_(2) < 0.9 ) {
         ROS_WARN_THROTTLE(3.0, "Drone take off.");
         return;
+      }
+      
+      if( !init_start_ ) {
+        ROS_WARN_THROTTLE(3.0, "Wait for Init command.");
+        break;
       }
 
       transitState(ROTATE, "FSM");
@@ -368,6 +373,13 @@ void ExplorationFSM::controllerPub( Eigen::Vector3f &pos, Eigen::Quaternionf &q 
 bool ExplorationFSM::startPlannerCallback( scoutair_planner_msgs::StartPlanner::Request &req,
                                            scoutair_planner_msgs::StartPlanner::Response &res )
 {
+  if( !init_start_ ) {
+    ROS_INFO("Starting the planner.");
+    init_start_ = true;
+    res.success = true;
+    return true;
+  }
+  
   ROS_INFO("Restarting the planner.");
   paused_ = false;
   res.success = true; 

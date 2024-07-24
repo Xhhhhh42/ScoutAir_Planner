@@ -131,10 +131,12 @@ private:
 
   void filterBlocksWithZEqualToZero( voxblox::BlockIndexList &updated_blocks );
 
-  int countVisibleCells(const Eigen::Vector3f& pos, const float& yaw, const std::vector<Eigen::Vector3f>& cluster);
+  int countVisibleCells( const Eigen::Vector3f& pos, const float& yaw, const std::vector<Eigen::Vector3f>& cluster );
 
   Eigen::Vector3i globalIndexToEigenVector3i( voxblox::GlobalIndex& global_index );
   voxblox::GlobalIndex eigenVector3iToGlobalIndex( Eigen::Vector3i& idx );
+
+  void logTimesToFile( double searchFrontiersTime, double computeFrontiersToVisitTime, double updateFrontierCostMatrixTime );
 
   // ROS Parameters
   ros::NodeHandle nh_;

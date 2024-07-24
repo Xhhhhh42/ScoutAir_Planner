@@ -73,6 +73,7 @@ private:
   bool trigger_, have_odom_, static_state_;
   bool ready_to_fly_;
   bool paused_;
+  bool init_start_;
   
   Eigen::Vector3f odom_pos_, last_odom_pos_, odom_vel_;  // odometry state
   Eigen::Quaternionf odom_orient_;
